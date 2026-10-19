@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
 import Toolbar from './components/Toolbar';
 import MathModal from './components/MathModal';
+import SymbolModal from './components/SymbolModal';
 import TableModal from './components/TableModal';
 import FigureModal from './components/FigureModal';
 import ReferenceModal from './components/ReferenceModal';
@@ -39,13 +40,14 @@ export default function App() {
 
   // Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
+  const [isSymbolModalOpen, setIsSymbolModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
   const [isRefModalOpen, setIsRefModalOpen] = useState(false);
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
 
-  // Estado del Modelo del Profesor (Referencia aislada)
+  // Modelo del Docente
   const [modelData, setModelData] = useState(null);
   const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
@@ -70,7 +72,6 @@ export default function App() {
     hasReferences: false,
   });
 
-  // Carga inicial
   useEffect(() => {
     if (editorRef.current) {
       const savedHtml = localStorage.getItem(STORAGE_KEY);
@@ -82,7 +83,6 @@ export default function App() {
       updateStatsAndPersist();
     }
 
-    // Recupera modelo guardado si existe
     const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
     if (savedModel) {
       try {
@@ -143,14 +143,59 @@ export default function App() {
     }
   };
 
-  // Carga y procesamiento del archivo modelo del profesor
+  // Botón Maestro: Aplica las reglas puras de APA 7 al párrafo actual
+  const handleApplyApaDefaultStyle = () => {
+    if (!editorRef.current) return;
+    document.execCommand('justifyLeft', false, null);
+    document.execCommand('fontName', false, 'Times New Roman');
+    document.execCommand('fontSize', false, '3'); // 12pt
+
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      let node = sel.anchorNode;
+      if (node.nodeType === 3) node = node.parentNode;
+      const p = node.closest('p');
+      if (p) {
+        p.className = 'indent-first-line';
+        p.style.lineHeight = '2.0';
+        p.style.textAlign = 'left';
+      }
+    }
+    updateStatsAndPersist();
+  };
+
+  // Control manual de sangrías (1.ª línea, francesa, sin sangría, bloque)
+  const handleApplyIndentStyle = (indentType) => {
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      let node = sel.anchorNode;
+      if (node.nodeType === 3) node = node.parentNode;
+      const p = node.closest('p');
+      if (p) {
+        p.classList.remove('indent-first-line', 'indent-hanging', 'indent-none', 'indent-block');
+        if (indentType === 'firstLine') p.classList.add('indent-first-line');
+        else if (indentType === 'hanging') p.classList.add('indent-hanging');
+        else if (indentType === 'none') p.classList.add('indent-none');
+        else if (indentType === 'block') p.classList.add('indent-block');
+      }
+    }
+    updateStatsAndPersist();
+  };
+
+  // Inserción directa de un símbolo en el cursor
+  const handleInsertSymbol = (char) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand('insertText', false, char);
+    updateStatsAndPersist();
+  };
+
   const handleUploadModel = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
     try {
       setSaveStatus('Analizando modelo...');
-
       let html = '';
       let rawText = '';
 
@@ -166,12 +211,10 @@ export default function App() {
         html = `<p>${rawText.replace(/\n\n/g, '</p><p>')}</p>`;
       }
 
-      // Parsea los títulos, preguntas o enunciados del modelo del profesor
       const lines = rawText.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
       const extractedSections = [];
 
       lines.forEach((line) => {
-        // Detecta títulos del docente (Pregunta X, Tareas, Fórmulas, Ejemplos, etc.)
         if (
           line.startsWith('#') ||
           /^pregunta\s+\d+/i.test(line) ||
@@ -182,19 +225,14 @@ export default function App() {
           line.toLowerCase().includes('fórmulas') ||
           (line.length < 80 && line.endsWith(':'))
         ) {
-          extractedSections.push({
-            title: line.replace(/^#+\s*/, ''),
-            content: '',
-          });
+          extractedSections.push({ title: line.replace(/^#+\s*/, ''), content: '' });
         } else if (extractedSections.length > 0) {
-          // Asocia las primeras líneas descriptivas a la sección actual
           if (!extractedSections[extractedSections.length - 1].content) {
             extractedSections[extractedSections.length - 1].content = line.slice(0, 160);
           }
         }
       });
 
-      // Si no detectó encabezados por regex, genera secciones estándar por párrafos
       const finalSections =
         extractedSections.length > 0
           ? extractedSections
@@ -208,9 +246,9 @@ export default function App() {
       };
 
       setModelData(newModel);
-      setIsModelDrawerOpen(true); // Abre el comparador lateral de inmediato
+      setIsModelDrawerOpen(true);
       localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(newModel));
-      setSaveStatus('Modelo cargado como referencia');
+      setSaveStatus('Modelo cargado');
     } catch (error) {
       alert('Error al leer el archivo modelo: ' + error.message);
     } finally {
@@ -218,7 +256,6 @@ export default function App() {
     }
   };
 
-  // Inserción controlada desde el panel del docente al cursor del alumno
   const handleInsertSnippet = (snippetHtml) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
@@ -229,7 +266,7 @@ export default function App() {
   const handleNewBlankPage = () => {
     if (window.confirm('¿Deseas vaciar el documento para empezar en una hoja en blanco?')) {
       if (editorRef.current) {
-        editorRef.current.innerHTML = '<p><br></p>';
+        editorRef.current.innerHTML = '<p class="indent-first-line"><br></p>';
         updateStatsAndPersist();
         editorRef.current.focus();
       }
@@ -252,7 +289,7 @@ export default function App() {
         </div>
         ${layout.showPageNumber ? `<div class="page-number-indicator-page">${nextNum}</div>` : ''}
       </div>
-      <p><br></p>
+      <p class="indent-first-line"><br></p>
     `;
 
     document.execCommand('insertHTML', false, pageHtml);
@@ -260,7 +297,7 @@ export default function App() {
   };
 
   const handleResetDocument = () => {
-    if (window.confirm('¿Seguro que deseas reiniciar el documento? Se restaurará la estructura inicial.')) {
+    if (window.confirm('¿Seguro que deseas reiniciar el documento? Se restaurará la plantilla inicial.')) {
       if (editorRef.current) {
         editorRef.current.innerHTML = DEFAULT_TEMPLATE;
         localStorage.removeItem(STORAGE_KEY);
@@ -329,6 +366,9 @@ export default function App() {
         onOpenFigureModal={() => setIsFigureModalOpen(true)}
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
         onOpenMathModal={() => setIsMathModalOpen(true)}
+        onOpenSymbolModal={() => setIsSymbolModalOpen(true)}
+        onApplyApaDefaultStyle={handleApplyApaDefaultStyle}
+        onApplyIndentStyle={handleApplyIndentStyle}
         onOpenLayoutModal={() => setIsLayoutModalOpen(true)}
         onToggleAudit={() => setIsAuditOpen(!isAuditOpen)}
         onToggleModelDrawer={() => setIsModelDrawerOpen(!isModelDrawerOpen)}
@@ -342,7 +382,6 @@ export default function App() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Lienzo Principal con Hoja APA */}
         <main className="flex-1 overflow-y-auto p-8 flex justify-center items-start">
           <div
             className={`paper-sheet size-${layout.paperSize}`}
@@ -379,7 +418,6 @@ export default function App() {
           </div>
         </main>
 
-        {/* Panel 1: Auditoría APA General */}
         {isAuditOpen && (
           <ApaAuditSidebar
             isOpen={isAuditOpen}
@@ -388,7 +426,6 @@ export default function App() {
           />
         )}
 
-        {/* Panel 2: Comparador y Lector del Modelo del Docente */}
         {isModelDrawerOpen && modelData && (
           <ModelComparisonDrawer
             isOpen={isModelDrawerOpen}
@@ -400,7 +437,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Barra de estado */}
       <footer className="h-7 bg-slate-950 border-t border-slate-800 px-6 flex items-center justify-between text-[11px] text-slate-400 no-print">
         <div className="flex items-center space-x-4">
           <span>Hojas estimadas: {stats.pages}</span>
@@ -417,6 +453,11 @@ export default function App() {
       </footer>
 
       {/* Modales */}
+      <SymbolModal
+        isOpen={isSymbolModalOpen}
+        onClose={() => setIsSymbolModalOpen(false)}
+        onInsertSymbol={handleInsertSymbol}
+      />
       <LayoutModal
         isOpen={isLayoutModalOpen}
         onClose={() => setIsLayoutModalOpen(false)}

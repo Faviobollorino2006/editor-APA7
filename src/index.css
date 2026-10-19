@@ -202,3 +202,26 @@ body {
     padding: 0 !important;
   }
 }
+
+/* Modos de sangría controlados manualmente */
+.editor-body p.indent-first-line {
+  text-indent: 0.5in !important; /* 1.27 cm exactos */
+  padding-left: 0 !important;
+}
+
+.editor-body p.indent-hanging {
+  padding-left: 0.5in !important;
+  text-indent: -0.5in !important; /* Sangría francesa */
+}
+
+.editor-body p.indent-none {
+  text-indent: 0 !important;
+  padding-left: 0 !important;
+}
+
+.editor-body p.indent-block {
+  text-indent: 0 !important;
+  padding-left: 0.5in !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
