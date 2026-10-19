@@ -3,55 +3,80 @@
 @tailwind utilities;
 
 body {
-  background-color: #0f172a;
+  background-color: #0b1120;
   margin: 0;
   padding: 0;
 }
 
-/* Hoja Carta APA 7 */
-.apa-document-page {
-  width: 8.5in;
-  min-height: 11in;
-  padding: 1in;
+/* Hoja Carta y Formatos de Papel */
+.paper-sheet {
   background-color: #ffffff !important;
   color: #000000 !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box;
+  position: relative;
+  margin: 0 auto 3rem auto;
+  transition: width 0.2s, min-height 0.2s, padding 0.2s;
+}
+
+/* Tamaños de hoja disponibles */
+.paper-sheet.size-letter {
+  width: 8.5in;
+  min-height: 11in;
+}
+
+.paper-sheet.size-a4 {
+  width: 8.27in;
+  min-height: 11.69in;
+}
+
+.paper-sheet.size-legal {
+  width: 8.5in;
+  min-height: 14in;
+}
+
+/* Capa de Encabezado Superior (Totalmente transparente a clics) */
+.page-header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none; /* Imposible que el cursor o el teclado queden atrapados aquí */
+  user-select: none;
   font-family: "Times New Roman", Times, serif;
   font-size: 12pt;
-  line-height: 2.0;
-  box-sizing: border-box;
-  outline: none;
-  position: relative;
-  margin: 0 auto;
-}
-
-/* Número de página arriba a la derecha en la primera hoja */
-.page-number-indicator {
-  position: absolute;
-  top: 1in;
-  right: 1in;
   line-height: 1;
-  font-size: 12pt;
   color: #000000;
-  user-select: none;
+  z-index: 10;
+  box-sizing: border-box;
 }
 
-/* Regla crítica: los párrafos vacíos tienen altura para que siempre reciban clics y saltos de línea */
-.apa-document-page p {
+/* Lienzo de Escritura Puro (Sin elementos absolutos interiores) */
+.editor-body {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  outline: none;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  box-sizing: border-box;
+}
+
+/* Sangría APA y altura mínima de párrafos */
+.editor-body p {
   text-indent: 0.5in;
   margin: 0;
   text-align: left;
-  min-height: 1.5em; 
+  min-height: 1.5em; /* Permite saltos con Enter sin que el párrafo colapse a 0px */
 }
 
-/* Bloques sin sangría */
-.apa-document-page .no-indent,
-.apa-document-page .no-indent p {
+.editor-body .no-indent,
+.editor-body .no-indent p {
   text-indent: 0 !important;
 }
 
 /* Títulos APA */
-.apa-document-page h3 {
+.editor-body h3 {
   font-size: 12pt;
   font-weight: bold;
   text-align: center;
@@ -60,7 +85,7 @@ body {
   text-indent: 0;
 }
 
-.apa-document-page h4 {
+.editor-body h4 {
   font-size: 12pt;
   font-weight: bold;
   text-align: left;
@@ -101,17 +126,18 @@ body {
   margin-bottom: 0.8em;
 }
 
-/* Separador visual de nueva página en pantalla */
+/* Separador visual de nueva página */
 .apa-page-break-container {
   display: block;
   user-select: none;
   margin: 3.5rem -1in 2.5rem -1in;
-  padding: 1.2rem 1in;
+  padding: 1rem 1in;
   background: #f1f5f9;
   border-top: 2px dashed #94a3b8;
   border-bottom: 2px dashed #94a3b8;
   position: relative;
   text-align: center;
+  pointer-events: none;
 }
 
 .apa-page-divider {
@@ -146,9 +172,9 @@ body {
   font-size: 12pt;
   font-family: "Times New Roman", Times, serif;
   color: #000000;
-  font-weight: normal;
 }
 
+/* Fórmulas matemáticas */
 .math-formula-box {
   user-select: all;
   padding: 4px 8px;
@@ -159,26 +185,20 @@ body {
   background-color: #f1f5f9;
 }
 
-.apa-document-page font[size="1"] { font-size: 10pt; }
-.apa-document-page font[size="2"] { font-size: 11pt; }
-.apa-document-page font[size="3"] { font-size: 12pt; }
-.apa-document-page font[size="4"] { font-size: 14pt; }
-.apa-document-page font[size="5"] { font-size: 18pt; }
+.editor-body font[size="1"] { font-size: 10pt; }
+.editor-body font[size="2"] { font-size: 11pt; }
+.editor-body font[size="3"] { font-size: 12pt; }
+.editor-body font[size="4"] { font-size: 14pt; }
+.editor-body font[size="5"] { font-size: 18pt; }
 
-/* Comportamiento de impresión / PDF */
 @media print {
   body { background: white; }
-  header, footer, .no-print { display: none !important; }
-  .apa-page-break-container {
-    page-break-after: always !important;
-    break-after: page !important;
-    display: block !important;
-    height: 0 !important;
+  header, footer, .no-print, .apa-page-break-container { display: none !important; }
+  .paper-sheet {
+    box-shadow: none !important;
     margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
     padding: 0 !important;
-    border: none !important;
-    background: transparent !important;
-    visibility: hidden !important;
   }
-  .apa-document-page { box-shadow: none; margin: 0; width: 100%; padding: 0; }
 }

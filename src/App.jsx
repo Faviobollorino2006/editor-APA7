@@ -5,13 +5,13 @@ import MathModal from './components/MathModal';
 import TableModal from './components/TableModal';
 import FigureModal from './components/FigureModal';
 import ReferenceModal from './components/ReferenceModal';
+import LayoutModal from './components/LayoutModal';
 import ApaAuditSidebar from './components/ApaAuditSidebar';
 import { exportToDocx } from './components/docxExport';
 
 const STORAGE_KEY = 'apa7_stats_document_draft';
 
 const DEFAULT_TEMPLATE = `
-  <div class="page-number-indicator">1</div>
   <div class="no-indent" style="line-height: 1.3; margin-bottom: 2em;">
     <div><strong>Bollorino Montoya, Favio</strong></div>
     <div>Guayaquil, 19 de octubre de 2026</div>
@@ -35,11 +35,22 @@ const DEFAULT_TEMPLATE = `
 export default function App() {
   const editorRef = useRef(null);
 
+  // Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
   const [isRefModalOpen, setIsRefModalOpen] = useState(false);
+  const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
+
+  // Configuración de Disposición y Dimensiones
+  const [layout, setLayout] = useState({
+    paperSize: 'letter', // 'letter' | 'a4' | 'legal'
+    marginSize: '2.54',  // en cm (1 pulgada = 2.54 cm)
+    lineHeight: '2.0',   // doble espacio APA
+    showPageNumber: true,
+    headerText: '',
+  });
 
   const [stats, setStats] = useState({ words: 0, chars: 0, pages: 1 });
   const [saveStatus, setSaveStatus] = useState('Guardado');
@@ -71,7 +82,7 @@ export default function App() {
 
     const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
     const chars = text.length;
-    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container, .apa-page-break').length;
+    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container').length;
 
     setStats({ words, chars, pages: pageBreaks + 1 });
 
@@ -94,61 +105,44 @@ export default function App() {
     }
   };
 
-  // Evita que la hoja quede sin elementos al borrar todo el contenido
   const handleEditorInput = () => {
     if (editorRef.current) {
       const text = editorRef.current.innerText || '';
+      // Si el usuario borra todo, nos aseguramos de que quede un párrafo listo para recibir clics y Enter
       if (text.trim() === '' && !editorRef.current.querySelector('p')) {
-        const hasBreak = editorRef.current.querySelector('.apa-page-break-container');
-        if (!hasBreak) {
-          editorRef.current.innerHTML = '<div class="page-number-indicator">1</div><p><br></p>';
-        }
+        editorRef.current.innerHTML = '<p><br></p>';
       }
     }
     setSaveStatus('Guardando...');
     updateStatsAndPersist();
   };
 
-  // Asegura el cursor en un párrafo si hacen clic en un lienzo vacío
   const handleEditorClick = () => {
     if (editorRef.current) {
       const text = editorRef.current.innerText?.trim() || '';
-      if (!text && (!editorRef.current.querySelector('p') || editorRef.current.innerHTML.trim() === '')) {
-        editorRef.current.innerHTML = '<div class="page-number-indicator">1</div><p><br></p>';
+      if (!text && !editorRef.current.querySelector('p')) {
+        editorRef.current.innerHTML = '<p><br></p>';
       }
     }
   };
 
-  // Si presionan Enter y no hay párrafo activo, lo genera de inmediato
-  const handleEditorKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (editorRef.current && !editorRef.current.querySelector('p')) {
-        e.preventDefault();
-        document.execCommand('insertParagraph', false);
-      }
-    }
-  };
-
-  // Crear Hoja en Blanco limpia
+  // Crear Hoja en Blanco completamente limpia
   const handleNewBlankPage = () => {
     if (window.confirm("¿Deseas vaciar el documento para empezar en una hoja en blanco?")) {
       if (editorRef.current) {
-        editorRef.current.innerHTML = `
-          <div class="page-number-indicator">1</div>
-          <p><br></p>
-        `;
+        editorRef.current.innerHTML = '<p><br></p>';
         updateStatsAndPersist();
         editorRef.current.focus();
       }
     }
   };
 
-  // Insertar Nueva Página numerada correlativamente
+  // Insertar Nueva Página con corte visual
   const handleInsertNewPage = () => {
     if (!editorRef.current) return;
     editorRef.current.focus();
 
-    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container, .apa-page-break').length;
+    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container').length;
     const nextNum = pageBreaks + 2;
 
     const pageHtml = `
@@ -158,23 +152,17 @@ export default function App() {
           <span class="divider-chip">Inicio de Hoja ${nextNum}</span>
           <span class="divider-line"></span>
         </div>
-        <div class="page-number-indicator-page">${nextNum}</div>
+        ${layout.showPageNumber ? `<div class="page-number-indicator-page">${nextNum}</div>` : ''}
       </div>
       <p><br></p>
     `;
 
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
-      document.execCommand('insertHTML', false, pageHtml);
-    } else {
-      editorRef.current.insertAdjacentHTML('beforeend', pageHtml);
-    }
-
+    document.execCommand('insertHTML', false, pageHtml);
     updateStatsAndPersist();
   };
 
   const handleResetDocument = () => {
-    if (window.confirm("¿Seguro que deseas reiniciar el documento? Se restaurará la plantilla inicial.")) {
+    if (window.confirm("¿Seguro que deseas reiniciar el documento? Se restaurará la estructura inicial.")) {
       if (editorRef.current) {
         editorRef.current.innerHTML = DEFAULT_TEMPLATE;
         localStorage.removeItem(STORAGE_KEY);
@@ -189,24 +177,20 @@ export default function App() {
 
     try {
       setSaveStatus('Leyendo modelo...');
-
       if (file.name.endsWith('.docx')) {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
-        
         if (editorRef.current) {
-          editorRef.current.innerHTML = `<div class="page-number-indicator">1</div>` + result.value;
+          editorRef.current.innerHTML = result.value;
           updateStatsAndPersist();
           alert("¡Modelo cargado con éxito!");
         }
       } else if (file.name.endsWith('.txt')) {
         const text = await file.text();
         if (editorRef.current) {
-          editorRef.current.innerHTML = `<div class="page-number-indicator">1</div><p>${text.replace(/\n\n/g, '</p><p>')}</p>`;
+          editorRef.current.innerHTML = `<p>${text.replace(/\n\n/g, '</p><p>')}</p>`;
           updateStatsAndPersist();
         }
-      } else {
-        alert("Sube un archivo .docx o .txt.");
       }
     } catch (error) {
       alert("Error al procesar el archivo: " + error.message);
@@ -272,14 +256,18 @@ export default function App() {
     await exportToDocx(editorRef.current, 'Investigacion_Estadistica_APA7.docx');
   };
 
+  // Conversión dinámica de márgenes (cm a estilo CSS)
+  const marginStyle = `${layout.marginSize}cm`;
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900">
+    <div className="min-h-screen flex flex-col bg-slate-950">
       <Toolbar
         onInsertHeader={handleInsertHeader}
         onOpenTableModal={() => setIsTableModalOpen(true)}
         onOpenFigureModal={() => setIsFigureModalOpen(true)}
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
         onOpenMathModal={() => setIsMathModalOpen(true)}
+        onOpenLayoutModal={() => setIsLayoutModalOpen(true)}
         onToggleAudit={() => setIsAuditOpen(!isAuditOpen)}
         onInsertNewPage={handleInsertNewPage}
         onNewBlankPage={handleNewBlankPage}
@@ -291,15 +279,44 @@ export default function App() {
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 flex justify-center items-start">
-          <div className="relative">
+          
+          {/* Hoja Física Simulada con Dimensiones y Márgenes de Disposición */}
+          <div
+            className={`paper-sheet size-${layout.paperSize}`}
+            style={{
+              padding: marginStyle,
+            }}
+          >
+            {/* Capa de Encabezado APA: Fija arriba y transparente a clics */}
+            <div
+              className="page-header-overlay"
+              style={{
+                top: `calc(${marginStyle} / 2)`,
+                left: marginStyle,
+                right: marginStyle,
+              }}
+            >
+              <div className="flex justify-between items-center w-full">
+                <span className="text-xs uppercase tracking-wider text-slate-700">
+                  {layout.headerText}
+                </span>
+                {layout.showPageNumber && (
+                  <span className="font-times text-base font-normal">1</span>
+                )}
+              </div>
+            </div>
+
+            {/* Lienzo de Escritura Puro */}
             <div
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
               onInput={handleEditorInput}
               onClick={handleEditorClick}
-              onKeyDown={handleEditorKeyDown}
-              className="apa-document-page shadow-2xl"
+              className="editor-body"
+              style={{
+                lineHeight: layout.lineHeight,
+              }}
               spellCheck="true"
             />
           </div>
@@ -321,11 +338,19 @@ export default function App() {
           <span>{stats.chars} caracteres</span>
         </div>
         <div className="flex items-center space-x-3 text-slate-500">
-          <span>APA 7.ª Edición</span>
-          <span>Márgenes: 2.54 cm</span>
-          <span>Saltos de página dinámicos activos</span>
+          <span>Formato: {layout.paperSize.toUpperCase()}</span>
+          <span>Márgenes: {layout.marginSize} cm</span>
+          <span>Interlineado: {layout.lineHeight}</span>
         </div>
       </footer>
+
+      {/* Modales */}
+      <LayoutModal
+        isOpen={isLayoutModalOpen}
+        onClose={() => setIsLayoutModalOpen(false)}
+        layout={layout}
+        onChangeLayout={setLayout}
+      />
 
       <MathModal
         isOpen={isMathModalOpen}
@@ -348,7 +373,7 @@ export default function App() {
       <ReferenceModal
         isOpen={isRefModalOpen}
         onClose={() => setIsRefModalOpen(false)}
-        onInsert={handleInsertReference}
+        onInsertReference={handleInsertReference}
         onInsertInTextCitation={handleInsertInTextCitation}
       />
     </div>

@@ -6,6 +6,7 @@ export default function Toolbar({
   onOpenFigureModal,
   onOpenReferenceModal,
   onOpenMathModal,
+  onOpenLayoutModal,
   onToggleAudit,
   onInsertNewPage,
   onNewBlankPage,
@@ -35,13 +36,13 @@ export default function Toolbar({
         onChange={onUploadModel}
       />
 
-      {/* Fila 1 */}
+      {/* Fila 1: Herramientas Globales y Estructura */}
       <div className="px-5 py-2 border-b border-slate-700/60 flex items-center justify-between text-xs">
         <div className="flex items-center space-x-3">
           <span className="font-black text-blue-400 tracking-wider text-sm">APA 7 STATS</span>
           <span className="text-slate-500">|</span>
-          <button onClick={() => execute('undo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700" title="Deshacer (Ctrl + Z)">↶ Deshacer</button>
-          <button onClick={() => execute('redo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700" title="Rehacer (Ctrl + Y)">↷ Rehacer</button>
+          <button onClick={() => execute('undo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700 transition-colors" title="Deshacer (Ctrl + Z)">↶</button>
+          <button onClick={() => execute('redo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700 transition-colors" title="Rehacer (Ctrl + Y)">↷</button>
           <span className="text-slate-500">|</span>
           <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -50,20 +51,27 @@ export default function Toolbar({
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Botón Nueva Página */}
+          {/* Botón de Disposición de Página */}
+          <button
+            onClick={onOpenLayoutModal}
+            className="bg-indigo-700 hover:bg-indigo-600 px-3 py-1 rounded text-xs text-white font-bold shadow flex items-center gap-1.5 transition-colors"
+            title="Ajustar tamaño de hoja (Carta), márgenes de 2.54 cm y encabezados"
+          >
+            <span>📐</span> Disposición
+          </button>
+
           <button
             onClick={onInsertNewPage}
             className="bg-amber-600 hover:bg-amber-500 px-2.5 py-1 rounded text-xs text-white font-bold shadow flex items-center gap-1"
-            title="Inserta una nueva página APA con numeración correlativa"
+            title="Inserta una nueva página con separación visual"
           >
             <span>+</span> Nueva Página
           </button>
 
-          {/* Botón Hoja en Blanco */}
           <button
             onClick={onNewBlankPage}
             className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs text-cyan-300 font-semibold"
-            title="Vaciar todo e iniciar en una hoja en blanco lista para escribir"
+            title="Vaciar la hoja e iniciar con cursor activo listo para saltos de línea"
           >
             📄 Hoja en Blanco
           </button>
@@ -71,6 +79,7 @@ export default function Toolbar({
           <button
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
             className="bg-blue-900/60 hover:bg-blue-800 border border-blue-600/60 px-2.5 py-1 rounded text-xs text-blue-200 font-semibold shadow flex items-center gap-1"
+            title="Subir archivo Word del docente"
           >
             <span>📂</span> Subir Modelo
           </button>
@@ -107,13 +116,13 @@ export default function Toolbar({
             <span>📄</span> Word (.docx)
           </button>
 
-          <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-medium text-slate-300">
+          <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs font-medium text-slate-300">
             PDF
           </button>
         </div>
       </div>
 
-      {/* Fila 2 */}
+      {/* Fila 2: Formato de Texto */}
       <div className="px-5 py-2 flex flex-wrap items-center gap-2 text-xs">
         <div className="flex items-center bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
           <label className="text-[10px] text-slate-400 mr-1.5">Fuente APA:</label>
