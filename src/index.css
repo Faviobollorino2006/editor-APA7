@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #1e293b;
+  margin: 0;
+  padding: 0;
+}
+
+/* Hoja Carta APA 7 obligatoria */
+.apa-document-page {
+  width: 8.5in;
+  min-height: 11in;
+  padding: 1in;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 2.0;
+  box-sizing: border-box;
+  outline: none;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* Indicador de página arriba a la derecha */
+.page-number-indicator {
+  position: absolute;
+  top: 1in;
+  right: 1in;
+  line-height: 1;
+  font-size: 12pt;
+  color: #000000;
+  user-select: none;
+}
+
+/* Párrafos estándar con sangría APA de 1.27 cm */
+.apa-document-page p {
+  text-indent: 0.5in;
+  margin: 0;
+  text-align: left;
+}
+
+/* Encabezados y bloques sin sangría */
+.apa-document-page .no-indent,
+.apa-document-page .no-indent p {
+  text-indent: 0 !important;
+}
+
+/* Nivel 1 APA: Centrado y Negrita */
+.apa-document-page h3 {
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  text-indent: 0;
+}
+
+/* Nivel 2 APA: Izquierda y Negrita */
+.apa-document-page h4 {
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+  text-indent: 0;
+}
+
+/* Tablas APA 7 (3 líneas principales horizontales) */
+.apa-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+.apa-table th {
+  border-top: 2px solid black;
+  border-bottom: 1px solid black;
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: normal;
+}
+
+.apa-table td {
+  padding: 6px 10px;
+  border: none;
+}
+
+.apa-table tr:last-child td {
+  border-bottom: 2px solid black;
+}
+
+/* Sangría francesa para referencias */
+.apa-reference-item {
+  padding-left: 0.5in;
+  text-indent: -0.5in;
+  margin-bottom: 0.8em;
+}
+
+/* Salto de página visual */
+.apa-page-break {
+  display: block;
+  border: none;
+  border-top: 2px dashed #94a3b8;
+  margin: 3em -1in 2.5em -1in;
+  position: relative;
+  text-align: center;
+  height: 0;
+}
+
+.apa-page-break::after {
+  content: "--- SALTO DE PÁGINA ---";
+  position: relative;
+  top: -11px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 12px;
+  font-size: 10px;
+  font-family: sans-serif;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Fórmulas matemáticas */
+.math-formula-box {
+  user-select: all;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.math-formula-box:hover {
+  background-color: #f1f5f9;
+}
+
+/* Tamaños de fuente */
+.apa-document-page font[size="1"] { font-size: 10pt; }
+.apa-document-page font[size="2"] { font-size: 11pt; }
+.apa-document-page font[size="3"] { font-size: 12pt; }
+.apa-document-page font[size="4"] { font-size: 14pt; }
+.apa-document-page font[size="5"] { font-size: 18pt; }
+
+@media print {
+  body { background: white; }
+  header, footer, .no-print { display: none !important; }
+  .apa-page-break { page-break-after: always !important; visibility: hidden !important; height: 0 !important; }
+  .apa-document-page { box-shadow: none; margin: 0; width: 100%; padding: 0; }
+}
