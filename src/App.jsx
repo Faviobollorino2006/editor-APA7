@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import mammoth from 'mammoth';
 import Toolbar from './components/Toolbar';
 import MathModal from './components/MathModal';
 import TableModal from './components/TableModal';
@@ -6,7 +7,6 @@ import FigureModal from './components/FigureModal';
 import ReferenceModal from './components/ReferenceModal';
 import ApaAuditSidebar from './components/ApaAuditSidebar';
 import { exportToDocx } from './components/docxExport';
-import mammoth from 'mammoth';
 
 const STORAGE_KEY = 'apa7_stats_document_draft';
 
@@ -35,14 +35,12 @@ const DEFAULT_TEMPLATE = `
 export default function App() {
   const editorRef = useRef(null);
 
-  // Estados de Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
   const [isRefModalOpen, setIsRefModalOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
 
-  // Métricas y Guardado
   const [stats, setStats] = useState({ words: 0, chars: 0, pages: 1 });
   const [saveStatus, setSaveStatus] = useState('Guardado');
   const [auditData, setAuditData] = useState({
@@ -71,40 +69,107 @@ export default function App() {
     const html = editorRef.current.innerHTML;
     const text = editorRef.current.innerText || '';
 
-    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
     const chars = text.length;
-    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break').length;
+    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container, .apa-page-break').length;
 
     setStats({ words, chars, pages: pageBreaks + 1 });
 
-    // Actualización de auditoría APA
     setAuditData({
       hasHeader: !!editorRef.current.querySelector('.no-indent'),
       hasTitle: !!editorRef.current.querySelector('h3'),
       headingCount: editorRef.current.querySelectorAll('h3, h4').length,
       wordCount: words,
       tableCount: editorRef.current.querySelectorAll('table').length,
-      hasReferences: !!editorRef.current.querySelector('.apa-reference-item') || text.includes('Referencias'),
+      hasReferences:
+        !!editorRef.current.querySelector('.apa-reference-item') ||
+        text.toLowerCase().includes('referencias'),
     });
 
     try {
       localStorage.setItem(STORAGE_KEY, html);
       setSaveStatus('Guardado en navegador');
     } catch (e) {
-      setSaveStatus('Guardado en memoria (Límite local alcanzado)');
+      setSaveStatus('Memoria llena');
     }
   };
 
+  // Evita que la hoja quede sin elementos al borrar todo el contenido
   const handleEditorInput = () => {
+    if (editorRef.current) {
+      const text = editorRef.current.innerText || '';
+      if (text.trim() === '' && !editorRef.current.querySelector('p')) {
+        const hasBreak = editorRef.current.querySelector('.apa-page-break-container');
+        if (!hasBreak) {
+          editorRef.current.innerHTML = '<div class="page-number-indicator">1</div><p><br></p>';
+        }
+      }
+    }
     setSaveStatus('Guardando...');
     updateStatsAndPersist();
   };
 
-  const handleInsertPageBreak = () => {
+  // Asegura el cursor en un párrafo si hacen clic en un lienzo vacío
+  const handleEditorClick = () => {
+    if (editorRef.current) {
+      const text = editorRef.current.innerText?.trim() || '';
+      if (!text && (!editorRef.current.querySelector('p') || editorRef.current.innerHTML.trim() === '')) {
+        editorRef.current.innerHTML = '<div class="page-number-indicator">1</div><p><br></p>';
+      }
+    }
+  };
+
+  // Si presionan Enter y no hay párrafo activo, lo genera de inmediato
+  const handleEditorKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (editorRef.current && !editorRef.current.querySelector('p')) {
+        e.preventDefault();
+        document.execCommand('insertParagraph', false);
+      }
+    }
+  };
+
+  // Crear Hoja en Blanco limpia
+  const handleNewBlankPage = () => {
+    if (window.confirm("¿Deseas vaciar el documento para empezar en una hoja en blanco?")) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = `
+          <div class="page-number-indicator">1</div>
+          <p><br></p>
+        `;
+        updateStatsAndPersist();
+        editorRef.current.focus();
+      }
+    }
+  };
+
+  // Insertar Nueva Página numerada correlativamente
+  const handleInsertNewPage = () => {
     if (!editorRef.current) return;
     editorRef.current.focus();
-    const breakHtml = `<hr class="apa-page-break" contenteditable="false" /><p></p>`;
-    document.execCommand('insertHTML', false, breakHtml);
+
+    const pageBreaks = editorRef.current.querySelectorAll('.apa-page-break-container, .apa-page-break').length;
+    const nextNum = pageBreaks + 2;
+
+    const pageHtml = `
+      <div class="apa-page-break-container" contenteditable="false">
+        <div class="apa-page-divider">
+          <span class="divider-line"></span>
+          <span class="divider-chip">Inicio de Hoja ${nextNum}</span>
+          <span class="divider-line"></span>
+        </div>
+        <div class="page-number-indicator-page">${nextNum}</div>
+      </div>
+      <p><br></p>
+    `;
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
+      document.execCommand('insertHTML', false, pageHtml);
+    } else {
+      editorRef.current.insertAdjacentHTML('beforeend', pageHtml);
+    }
+
     updateStatsAndPersist();
   };
 
@@ -115,6 +180,38 @@ export default function App() {
         localStorage.removeItem(STORAGE_KEY);
         updateStatsAndPersist();
       }
+    }
+  };
+
+  const handleUploadModel = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    try {
+      setSaveStatus('Leyendo modelo...');
+
+      if (file.name.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        
+        if (editorRef.current) {
+          editorRef.current.innerHTML = `<div class="page-number-indicator">1</div>` + result.value;
+          updateStatsAndPersist();
+          alert("¡Modelo cargado con éxito!");
+        }
+      } else if (file.name.endsWith('.txt')) {
+        const text = await file.text();
+        if (editorRef.current) {
+          editorRef.current.innerHTML = `<div class="page-number-indicator">1</div><p>${text.replace(/\n\n/g, '</p><p>')}</p>`;
+          updateStatsAndPersist();
+        }
+      } else {
+        alert("Sube un archivo .docx o .txt.");
+      }
+    } catch (error) {
+      alert("Error al procesar el archivo: " + error.message);
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -175,42 +272,8 @@ export default function App() {
     await exportToDocx(editorRef.current, 'Investigacion_Estadistica_APA7.docx');
   };
 
-  // Procesa el archivo Word o de texto subido por el estudiante
-const handleUploadModel = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  try {
-    setSaveStatus('Cargando modelo...');
-
-    if (file.name.endsWith('.docx')) {
-      const arrayBuffer = await file.arrayBuffer();
-      // Convierte el archivo DOCX del profesor a HTML limpio con formato
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      if (editorRef.current) {
-        editorRef.current.innerHTML = result.value;
-        updateStatsAndPersist();
-        alert("¡Archivo modelo del profesor cargado con éxito! Ya puedes editar y corregir directamente sobre él.");
-      }
-    } else if (file.name.endsWith('.txt')) {
-      const text = await file.text();
-      if (editorRef.current) {
-        editorRef.current.innerText = text;
-        updateStatsAndPersist();
-      }
-    } else {
-      alert("Por favor sube un archivo en formato .docx (Word) o .txt.");
-    }
-  } catch (error) {
-    alert("Error al procesar el archivo: " + error.message);
-  } finally {
-    e.target.value = ''; // Permite volver a subir el mismo archivo si es necesario
-  }
-};
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-900">
-      {/* Cinta superior */}
       <Toolbar
         onInsertHeader={handleInsertHeader}
         onOpenTableModal={() => setIsTableModalOpen(true)}
@@ -218,14 +281,14 @@ const handleUploadModel = async (e) => {
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
         onOpenMathModal={() => setIsMathModalOpen(true)}
         onToggleAudit={() => setIsAuditOpen(!isAuditOpen)}
-        onInsertPageBreak={handleInsertPageBreak}
+        onInsertNewPage={handleInsertNewPage}
+        onNewBlankPage={handleNewBlankPage}
         onResetDocument={handleResetDocument}
         onExportWord={handleExportWord}
         onUploadModel={handleUploadModel}
         saveStatus={saveStatus}
       />
 
-      {/* Área central con soporte para panel lateral */}
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8 flex justify-center items-start">
           <div className="relative">
@@ -234,14 +297,14 @@ const handleUploadModel = async (e) => {
               contentEditable
               suppressContentEditableWarning
               onInput={handleEditorInput}
-              onKeyUp={handleEditorInput}
+              onClick={handleEditorClick}
+              onKeyDown={handleEditorKeyDown}
               className="apa-document-page shadow-2xl"
               spellCheck="true"
             />
           </div>
         </main>
 
-        {/* Panel lateral de verificación APA */}
         {isAuditOpen && (
           <ApaAuditSidebar
             isOpen={isAuditOpen}
@@ -251,21 +314,19 @@ const handleUploadModel = async (e) => {
         )}
       </div>
 
-      {/* Barra de estado */}
       <footer className="h-7 bg-slate-950 border-t border-slate-800 px-6 flex items-center justify-between text-[11px] text-slate-400 no-print">
         <div className="flex items-center space-x-4">
-          <span>Páginas: {stats.pages}</span>
+          <span>Hojas estimadas: {stats.pages}</span>
           <span>{stats.words} palabras</span>
           <span>{stats.chars} caracteres</span>
         </div>
         <div className="flex items-center space-x-3 text-slate-500">
           <span>APA 7.ª Edición</span>
           <span>Márgenes: 2.54 cm</span>
-          <span>DOCX & Checklist activo</span>
+          <span>Saltos de página dinámicos activos</span>
         </div>
       </footer>
 
-      {/* Modales */}
       <MathModal
         isOpen={isMathModalOpen}
         onClose={() => setIsMathModalOpen(false)}
@@ -287,7 +348,7 @@ const handleUploadModel = async (e) => {
       <ReferenceModal
         isOpen={isRefModalOpen}
         onClose={() => setIsRefModalOpen(false)}
-        onInsertReference={handleInsertReference}
+        onInsert={handleInsertReference}
         onInsertInTextCitation={handleInsertInTextCitation}
       />
     </div>

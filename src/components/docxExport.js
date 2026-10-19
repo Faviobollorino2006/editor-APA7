@@ -19,7 +19,6 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
   const nodes = Array.from(editorElement.childNodes);
 
   for (const node of nodes) {
-    // 1. Saltos de línea o texto huérfano
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent.trim();
       if (text) {
@@ -27,7 +26,7 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
           new Paragraph({
             children: [new TextRun({ text, font: 'Times New Roman', size: 24 })],
             spacing: { line: 480, after: 0 },
-            indent: { firstLine: 720 }, // 0.5 in
+            indent: { firstLine: 720 },
           })
         );
       }
@@ -35,16 +34,27 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
     }
 
     if (node.nodeType !== Node.ELEMENT_NODE) continue;
-
     const el = node;
 
-    // 2. Salto de página
-    if (el.classList.contains('apa-page-break') || el.tagName === 'HR') {
+    // Ignorar indicadores visuales de página en el cuerpo de Word
+    if (
+      el.classList.contains('page-number-indicator') ||
+      el.classList.contains('page-number-indicator-page')
+    ) {
+      continue;
+    }
+
+    // Salto de página oficial
+    if (
+      el.classList.contains('apa-page-break') ||
+      el.classList.contains('apa-page-break-container') ||
+      el.tagName === 'HR'
+    ) {
       docChildren.push(new Paragraph({ children: [new PageBreak()] }));
       continue;
     }
 
-    // 3. Encabezado o bloques sin sangría
+    // Encabezado
     if (el.classList.contains('no-indent')) {
       const subLines = el.innerText.split('\n').filter(l => l.trim().length > 0);
       for (const line of subLines) {
@@ -58,7 +68,7 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // 4. Título Nivel 1 (h3) - Centrado y Negrita
+    // Título Nivel 1
     if (el.tagName === 'H3') {
       docChildren.push(
         new Paragraph({
@@ -70,7 +80,7 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // 5. Título Nivel 2 (h4) - Izquierda y Negrita
+    // Título Nivel 2
     if (el.tagName === 'H4') {
       docChildren.push(
         new Paragraph({
@@ -82,19 +92,19 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // 6. Referencia Bibliográfica (Sangría francesa)
+    // Referencia
     if (el.classList.contains('apa-reference-item')) {
       docChildren.push(
         new Paragraph({
           children: [new TextRun({ text: el.innerText.trim(), font: 'Times New Roman', size: 24 })],
-          indent: { left: 720, hanging: 720 }, // Sangría francesa de 1.27 cm
+          indent: { left: 720, hanging: 720 },
           spacing: { line: 480, after: 200 },
         })
       );
       continue;
     }
 
-    // 7. Tablas estadísticas APA
+    // Tablas
     const tableEl = el.querySelector('table');
     if (tableEl || el.tagName === 'TABLE') {
       const targetTable = tableEl || el;
@@ -133,7 +143,6 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
         });
       });
 
-      // Rótulos de la tabla
       const tableLabel = el.querySelector('div[style*="font-weight: bold"], div[style*="font-weight:bold"]');
       const tableTitle = el.querySelector('div[style*="font-style: italic"], div[style*="font-style:italic"]');
       const tableNote = el.querySelector('div[style*="font-size: 10pt"], div[style*="font-size:10pt"]');
@@ -168,20 +177,19 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // 8. Párrafo regular con sangría de primera línea
+    // Párrafo general
     const textContent = el.innerText.trim();
     if (textContent) {
       docChildren.push(
         new Paragraph({
           children: [new TextRun({ text: textContent, font: 'Times New Roman', size: 24 })],
           spacing: { line: 480, after: 0 },
-          indent: { firstLine: 720 }, // 0.5 in de sangría
+          indent: { firstLine: 720 },
         })
       );
     }
   }
 
-  // Creación del documento con márgenes de 1 pulgada (1440 twips)
   const doc = new Document({
     sections: [
       {
@@ -195,7 +203,6 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
     ],
   });
 
-  // Descarga directa en el navegador
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
