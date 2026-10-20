@@ -40,6 +40,7 @@ export default function App() {
   const [pages, setPages] = useState([{ id: 1 }]);
   const pageRefs = useRef([]);
   const activePageIndex = useRef(0);
+  const lastRangeRef = useRef(null); // Guarda la posición exacta del cursor en todo momento
 
   // Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
@@ -74,6 +75,14 @@ export default function App() {
     tableCount: 0,
     hasReferences: false,
   });
+
+  // Guarda la ubicación activa del cursor para que nunca se pierda
+  const saveCursorPosition = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      lastRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PAGES);
@@ -145,6 +154,7 @@ export default function App() {
 
   const handleEditorInput = (index) => {
     activePageIndex.current = index;
+    saveCursorPosition();
     const el = pageRefs.current[index];
     if (el) {
       const text = el.innerText || '';
@@ -159,6 +169,77 @@ export default function App() {
   const getActivePageEl = () => {
     const idx = activePageIndex.current;
     return pageRefs.current[idx] || pageRefs.current[0];
+  };
+
+  // Motor de Tabulación Nativo por Rangos del DOM
+  const insertTabAtCursor = () => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+
+    let sel = window.getSelection();
+    let range = null;
+
+    if (sel && sel.rangeCount > 0) {
+      const curRange = sel.getRangeAt(0);
+      if (activeEl.contains(curRange.commonAncestorContainer)) {
+        range = curRange;
+      }
+    }
+
+    // Si el foco se perdió en la barra de herramientas, recuperamos la última posición
+    if (!range && lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      range = lastRangeRef.current;
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    // Si aún no hay rango, lo ubicamos al inicio o final del elemento activo
+    if (!range) {
+      activeEl.focus();
+      sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        range = sel.getRangeAt(0);
+      }
+    }
+
+    if (range) {
+      range.deleteContents();
+
+      // Espaciado de tabulación real (6 caracteres indivisibles ~ 1.27 cm / 0.5 pulgadas)
+      const tabCharacters = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
+      const tabNode = document.createTextNode(tabCharacters);
+
+      range.insertNode(tabNode);
+
+      // Colocamos el cursor exactamente después de la tabulación
+      const newRange = document.createRange();
+      newRange.setStartAfter(tabNode);
+      newRange.setEndAfter(tabNode);
+      newRange.collapse(true);
+
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      lastRangeRef.current = newRange.cloneRange();
+
+      updateStatsAndPersist();
+    }
+  };
+
+  // Controlador de teclado: intercepta la tecla física Tab
+  const handleEditorKeyDown = (e, index) => {
+    activePageIndex.current = index;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      insertTabAtCursor();
+    } else if (e.key === 'Enter') {
+      const el = pageRefs.current[index];
+      if (el && !el.querySelector('p')) {
+        e.preventDefault();
+        document.execCommand('insertParagraph', false);
+      }
+    }
   };
 
   const handleInsertNewPage = () => {
@@ -248,6 +329,7 @@ export default function App() {
     if (!el) return;
     el.focus();
     document.execCommand('insertText', false, char);
+    saveCursorPosition();
     updateStatsAndPersist();
   };
 
@@ -256,6 +338,7 @@ export default function App() {
     if (!el) return;
     el.focus();
     document.execCommand('insertHTML', false, snippetHtml);
+    saveCursorPosition();
     updateStatsAndPersist();
   };
 
@@ -295,12 +378,11 @@ export default function App() {
 
   const handleExportPdf = async () => {
     try {
-      setSaveStatus('Generando archivo PDF...');
+      setSaveStatus('Generando PDF...');
       await exportToPdf(null, 'Investigacion_Estadistica_APA7.pdf');
-      setSaveStatus('PDF descargado con éxito');
+      setSaveStatus('PDF descargado');
     } catch (e) {
-      alert("Error al generar el PDF: " + e.message);
-      setSaveStatus('Error al generar PDF');
+      alert("Error al generar PDF: " + e.message);
     }
   };
 
@@ -362,17 +444,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-
-    const handleEditorKeyDown = (e, index) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-    
-      document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
-      updateStatsAndPersist();
-    }
   };
-    };
-  
 
   const marginStyle = `${layout.marginSize}cm`;
 
@@ -397,16 +469,14 @@ export default function App() {
         onExportWord={handleExportWord}
         onExportPdf={handleExportPdf}
         onUploadModel={handleUploadModel}
+        onInsertTab={insertTabAtCursor}
         saveStatus={saveStatus}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Escritorio Diurno Tipo Word */}
         <main className="flex-1 overflow-y-auto py-10 px-6 flex flex-col items-center">
           {pages.map((page, index) => (
             <div key={page.id} className="relative mb-10 flex flex-col items-center">
-              
-              {/* Cabecera sutil de la página */}
               <div className="w-full flex items-center justify-between px-2 pb-1.5 text-xs text-slate-500 no-print">
                 <span className="font-sans font-medium text-[11px] text-slate-400">
                   Página {index + 1} de {pages.length}
@@ -422,12 +492,10 @@ export default function App() {
                 )}
               </div>
 
-              {/* Hoja Física Carta con sombra suave */}
               <div
                 className={`paper-sheet size-${layout.paperSize}`}
                 style={{ padding: marginStyle }}
               >
-                {/* Encabezado Superior APA */}
                 <div
                   className="page-header-overlay"
                   style={{
@@ -446,15 +514,18 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Lienzo de Escritura */}
                 <div
                   ref={(el) => (pageRefs.current[index] = el)}
                   contentEditable
                   suppressContentEditableWarning
                   onInput={() => handleEditorInput(index)}
-                  onFocus={() => (activePageIndex.current = index)}
+                  onFocus={() => {
+                    activePageIndex.current = index;
+                    saveCursorPosition();
+                  }}
+                  onKeyUp={saveCursorPosition}
+                  onMouseUp={saveCursorPosition}
                   onKeyDown={(e) => handleEditorKeyDown(e, index)}
-                  onInsertTab={() => handleInsertSnippet('&nbsp;&nbsp;&nbsp;&nbsp;')}
                   className="editor-body"
                   style={{ lineHeight: layout.lineHeight }}
                   spellCheck="true"
@@ -463,7 +534,6 @@ export default function App() {
             </div>
           ))}
 
-          {/* Botón sobrio para agregar página */}
           <button
             onClick={handleInsertNewPage}
             className="no-print my-4 px-5 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-medium shadow-2xs flex items-center gap-2 transition-all"
@@ -487,7 +557,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Barra de Estado Inferior estilo Microsoft Word */}
       <footer className="h-6 bg-slate-100 border-t border-slate-200 px-6 flex items-center justify-between text-[11px] text-slate-500 font-sans no-print select-none">
         <div className="flex items-center space-x-4">
           <span>Página {pages.length > 1 ? `1-${pages.length}` : '1'} de {stats.pages}</span>
