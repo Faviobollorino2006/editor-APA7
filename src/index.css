@@ -8,18 +8,18 @@ body {
   padding: 0;
 }
 
-/* Hoja Carta y Formatos de Papel */
+/* Hoja Carta y Formatos de Papel Físicos */
 .paper-sheet {
   background-color: #ffffff !important;
   color: #000000 !important;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
   position: relative;
-  margin: 0 auto 3rem auto;
+  margin: 0 auto;
+  border-radius: 2px;
   transition: width 0.2s, min-height 0.2s, padding 0.2s;
 }
 
-/* Tamaños de hoja disponibles */
 .paper-sheet.size-letter {
   width: 8.5in;
   min-height: 11in;
@@ -35,13 +35,13 @@ body {
   min-height: 14in;
 }
 
-/* Capa de Encabezado Superior (Totalmente transparente a clics) */
+/* Capa de Encabezado APA: Fija arriba y transparente al cursor */
 .page-header-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  pointer-events: none; /* Imposible que el cursor o el teclado queden atrapados aquí */
+  pointer-events: none;
   user-select: none;
   font-family: "Times New Roman", Times, serif;
   font-size: 12pt;
@@ -51,7 +51,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Lienzo de Escritura Puro (Sin elementos absolutos interiores) */
+/* Área de Escritura */
 .editor-body {
   width: 100%;
   height: 100%;
@@ -62,12 +62,12 @@ body {
   box-sizing: border-box;
 }
 
-/* Sangría APA y altura mínima de párrafos */
+/* Sangría APA y párrafos */
 .editor-body p {
   text-indent: 0.5in;
   margin: 0;
   text-align: left;
-  min-height: 1.5em; /* Permite saltos con Enter sin que el párrafo colapse a 0px */
+  min-height: 1.5em;
 }
 
 .editor-body .no-indent,
@@ -126,55 +126,6 @@ body {
   margin-bottom: 0.8em;
 }
 
-/* Separador visual de nueva página */
-.apa-page-break-container {
-  display: block;
-  user-select: none;
-  margin: 3.5rem -1in 2.5rem -1in;
-  padding: 1rem 1in;
-  background: #f1f5f9;
-  border-top: 2px dashed #94a3b8;
-  border-bottom: 2px dashed #94a3b8;
-  position: relative;
-  text-align: center;
-  pointer-events: none;
-}
-
-.apa-page-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: #cbd5e1;
-}
-
-.divider-chip {
-  background: #1e293b;
-  color: #f8fafc;
-  font-family: sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 14px;
-  border-radius: 9999px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.page-number-indicator-page {
-  position: absolute;
-  top: 12px;
-  right: 1in;
-  font-size: 12pt;
-  font-family: "Times New Roman", Times, serif;
-  color: #000000;
-}
-
-/* Fórmulas matemáticas */
 .math-formula-box {
   user-select: all;
   padding: 4px 8px;
@@ -191,64 +142,20 @@ body {
 .editor-body font[size="4"] { font-size: 14pt; }
 .editor-body font[size="5"] { font-size: 18pt; }
 
-/* Reglas estrictas de Exportación a PDF / Impresión */
+/* Sangrías controladas */
+.editor-body p.indent-first-line { text-indent: 0.5in !important; padding-left: 0 !important; }
+.editor-body p.indent-hanging { padding-left: 0.5in !important; text-indent: -0.5in !important; }
+.editor-body p.indent-none { text-indent: 0 !important; padding-left: 0 !important; }
+.editor-body p.indent-block { text-indent: 0 !important; padding-left: 0.5in !important; margin: 0.5em 0; }
+
 @media print {
-  @page {
-    size: letter portrait;
-    margin: 1in; /* Margen oficial APA 7 de 2.54 cm */
-  }
-
-  body {
-    background: #ffffff !important;
-  }
-
-  /* Oculta la barra de herramientas, pies de página, modales y overlays */
-  header,
-  footer,
-  aside,
-  .no-print,
-  .page-header-overlay,
-  .apa-page-break-container {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
+  body { background: white; }
+  header, footer, aside, .no-print { display: none !important; }
   .paper-sheet {
     box-shadow: none !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
-    max-width: 100% !important;
-    min-height: auto !important;
+    page-break-after: always !important;
   }
-
-  .editor-body {
-    padding: 0 !important;
-  }
-}
-
-/* Modos de sangría controlados manualmente */
-.editor-body p.indent-first-line {
-  text-indent: 0.5in !important; /* 1.27 cm exactos */
-  padding-left: 0 !important;
-}
-
-.editor-body p.indent-hanging {
-  padding-left: 0.5in !important;
-  text-indent: -0.5in !important; /* Sangría francesa */
-}
-
-.editor-body p.indent-none {
-  text-indent: 0 !important;
-  padding-left: 0 !important;
-}
-
-.editor-body p.indent-block {
-  text-indent: 0 !important;
-  padding-left: 0.5in !important;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
 }
