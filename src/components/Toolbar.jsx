@@ -19,6 +19,7 @@ export default function Toolbar({
   onExportWord,
   onExportPdf,
   onUploadModel,
+  onInsertTab,
   saveStatus,
 }) {
   const fileInputRef = useRef(null);
@@ -43,10 +44,8 @@ export default function Toolbar({
         onChange={onUploadModel}
       />
 
-      {/* Fila Superior: Título institucional y Acciones de Documento */}
+      {/* Fila Superior: Título institucional y Acciones Principales */}
       <div className="px-6 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
-        
-        {/* Identidad de la herramienta */}
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
             <span className="w-6 h-6 rounded bg-blue-700 text-white font-serif font-bold text-xs flex items-center justify-center shadow-sm">
@@ -56,7 +55,7 @@ export default function Toolbar({
               Editor Académico <span className="text-blue-700 font-bold">APA 7</span>
             </span>
           </div>
-          
+
           <span className="text-slate-300">|</span>
 
           {/* Deshacer / Rehacer */}
@@ -81,27 +80,23 @@ export default function Toolbar({
 
           <span className="text-slate-300">|</span>
 
-          {/* Estado de guardado discreto */}
           <span className="text-[11px] text-slate-500 flex items-center gap-1.5 font-sans">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             {saveStatus}
           </span>
         </div>
 
-        {/* Grupo de Acciones Principales */}
         <div className="flex items-center space-x-2">
-          
-          {/* Botón Maestro APA 7 */}
+          {/* Estilo APA 7 */}
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onApplyApaDefaultStyle}
             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold px-3 py-1 rounded text-xs transition-colors flex items-center gap-1.5"
-            title="Aplica formato APA 7 al párrafo actual"
+            title="Aplica formato reglamentario APA 7 al párrafo actual"
           >
             <span>✓</span> Formato APA 7
           </button>
 
-          {/* Modelo Docente */}
           {hasModelLoaded ? (
             <button
               onClick={onToggleModelDrawer}
@@ -134,20 +129,33 @@ export default function Toolbar({
           </button>
 
           <button
+            onClick={onNewBlankPage}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-xs transition-colors"
+          >
+            Hoja en Blanco
+          </button>
+
+          <button
             onClick={onToggleAudit}
             className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-xs transition-colors"
           >
             Checklist
           </button>
 
+          <button
+            onClick={onResetDocument}
+            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 rounded text-xs transition-colors"
+          >
+            Reiniciar
+          </button>
+
           <span className="text-slate-300">|</span>
 
-          {/* Exportaciones oficiales de Word y PDF */}
           <button
             onClick={onExportWord}
             className="bg-blue-700 hover:bg-blue-800 text-white font-medium px-3 py-1 rounded text-xs shadow-sm flex items-center gap-1.5 transition-colors"
           >
-            <span>Descargar</span> Word (.docx)
+            <span>📄</span> Word (.docx)
           </button>
 
           <button
@@ -159,9 +167,8 @@ export default function Toolbar({
         </div>
       </div>
 
-      {/* Fila Inferior: Cinta de Formato y Herramientas (Word Ribbon) */}
+      {/* Fila Inferior: Formato, Alineaciones, Sangría y Tabulación */}
       <div className="px-6 py-1.5 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
-        
         {/* Fuente */}
         <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
           <select
@@ -193,7 +200,7 @@ export default function Toolbar({
 
         <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        {/* Negrita, Cursiva, Subrayado, Tachado */}
+        {/* B, I, U, S */}
         <div className="flex items-center bg-white border border-slate-200 rounded p-0.5 shadow-2xs">
           <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('bold')} className="px-2 py-0.5 font-bold text-slate-700 hover:bg-slate-100 rounded" title="Negrita">B</button>
           <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('italic')} className="px-2 py-0.5 italic font-serif text-slate-700 hover:bg-slate-100 rounded" title="Cursiva">I</button>
@@ -201,7 +208,7 @@ export default function Toolbar({
           <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('strikeThrough')} className="px-2 py-0.5 line-through text-slate-700 hover:bg-slate-100 rounded" title="Tachado">S</button>
         </div>
 
-        {/* Color y Resaltado */}
+        {/* Color y Resaltador */}
         <div className="flex items-center space-x-1.5 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
           <div className="flex items-center gap-1" title="Color de Fuente">
             <span className="text-[11px] font-bold text-slate-600">A</span>
@@ -227,29 +234,32 @@ export default function Toolbar({
 
         <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        {/* Sangría */}
-        <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
-          <label className="text-[10px] text-slate-400 mr-1.5 font-medium">Sangría:</label>
-          <select onChange={(e) => onApplyIndentStyle(e.target.value)} defaultValue="firstLine" className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans">
-            <option value="firstLine">1.ª Línea (1.27 cm APA)</option>
-            <option value="hanging">Francesa (Referencias)</option>
-            <option value="none">Sin Sangría</option>
-            <option value="block">Cita en Bloque</option>
-          </select>
-        </div>
+        {/* Sangría y Tabulador */}
+        <div className="flex items-center space-x-1">
+          <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
+            <label className="text-[10px] text-slate-400 mr-1.5 font-medium">Sangría:</label>
+            <select onChange={(e) => onApplyIndentStyle(e.target.value)} defaultValue="firstLine" className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans">
+              <option value="firstLine">1.ª Línea (1.27 cm APA)</option>
+              <option value="hanging">Francesa (Referencias)</option>
+              <option value="none">Sin Sangría</option>
+              <option value="block">Cita en Bloque</option>
+            </select>
+          </div>
 
-        <button
-  onMouseDown={(e) => e.preventDefault()}
-  onClick={onInsertTab}
-  className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-mono font-bold"
-  title="Insertar espacio de tabulación (Tecla Tab)"
->
-  ↹ Tab
-</button>
+          {/* Botón Tabulador */}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onInsertTab}
+            className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-mono font-bold"
+            title="Insertar espacio de tabulación en el cursor (Tecla Tab)"
+          >
+            ↹ Tab
+          </button>
+        </div>
 
         <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        {/* Herramientas de Inserción Formal */}
+        {/* Modales y Herramientas */}
         <div className="flex items-center space-x-1">
           <button onMouseDown={(e) => e.preventDefault()} onClick={onInsertHeader} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
             + Encabezado
