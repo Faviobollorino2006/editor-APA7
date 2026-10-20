@@ -362,7 +362,17 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
+
+    const handleEditorKeyDown = (e, index) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+    
+      document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+      updateStatsAndPersist();
+    }
   };
+    };
+  
 
   const marginStyle = `${layout.marginSize}cm`;
 
@@ -443,6 +453,8 @@ export default function App() {
                   suppressContentEditableWarning
                   onInput={() => handleEditorInput(index)}
                   onFocus={() => (activePageIndex.current = index)}
+                  onKeyDown={(e) => handleEditorKeyDown(e, index)}
+                  onInsertTab={() => handleInsertSnippet('&nbsp;&nbsp;&nbsp;&nbsp;')}
                   className="editor-body"
                   style={{ lineHeight: layout.lineHeight }}
                   spellCheck="true"

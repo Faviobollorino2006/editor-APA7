@@ -238,6 +238,15 @@ export default function Toolbar({
           </select>
         </div>
 
+        <button
+  onMouseDown={(e) => e.preventDefault()}
+  onClick={onInsertTab}
+  className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-mono font-bold"
+  title="Insertar espacio de tabulación (Tecla Tab)"
+>
+  ↹ Tab
+</button>
+
         <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
         {/* Herramientas de Inserción Formal */}
