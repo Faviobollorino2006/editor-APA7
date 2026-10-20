@@ -191,14 +191,41 @@ body {
 .editor-body font[size="4"] { font-size: 14pt; }
 .editor-body font[size="5"] { font-size: 18pt; }
 
+/* Reglas estrictas de Exportación a PDF / Impresión */
 @media print {
-  body { background: white; }
-  header, footer, .no-print, .apa-page-break-container { display: none !important; }
+  @page {
+    size: letter portrait;
+    margin: 1in; /* Margen oficial APA 7 de 2.54 cm */
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  /* Oculta la barra de herramientas, pies de página, modales y overlays */
+  header,
+  footer,
+  aside,
+  .no-print,
+  .page-header-overlay,
+  .apa-page-break-container {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .paper-sheet {
     box-shadow: none !important;
     margin: 0 !important;
+    padding: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     min-height: auto !important;
+  }
+
+  .editor-body {
     padding: 0 !important;
   }
 }

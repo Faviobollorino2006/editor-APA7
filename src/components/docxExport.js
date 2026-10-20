@@ -12,39 +12,104 @@ import {
   PageBreak,
 } from 'docx';
 
-export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistica_APA7.docx') {
+// Extrae estilos inline (negrita, cursiva, subíndices, superíndices, etc.) de forma recursiva
+function parseInlineRuns(domNode) {
+  const runs = [];
+
+  function traverse(node, currentStyles) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      if (text) {
+        runs.push(
+          new TextRun({
+            text: text,
+            font: currentStyles.font || 'Times New Roman',
+            size: currentStyles.size || 24, // 12pt en medios puntos
+            bold: currentStyles.bold || false,
+            italics: currentStyles.italics || false,
+            underline: currentStyles.underline ? {} : undefined,
+            strike: currentStyles.strike || false,
+            subScript: currentStyles.subScript || false,
+            superScript: currentStyles.superScript || false,
+            color: currentStyles.color || undefined,
+          })
+        );
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const newStyles = { ...currentStyles };
+    const tag = node.tagName.toLowerCase();
+    const style = node.getAttribute('style') || '';
+
+    // Detección de estilos tipográficos
+    if (tag === 'b' || tag === 'strong' || style.includes('font-weight: bold') || style.includes('font-weight:bold')) {
+      newStyles.bold = true;
+    }
+    if (tag === 'i' || tag === 'em' || style.includes('font-style: italic') || style.includes('font-style:italic')) {
+      newStyles.italics = true;
+    }
+    if (tag === 'u' || style.includes('text-decoration: underline')) {
+      newStyles.underline = true;
+    }
+    if (tag === 's' || tag === 'strike') {
+      newStyles.strike = true;
+    }
+    if (tag === 'sub') {
+      newStyles.subScript = true;
+    }
+    if (tag === 'sup') {
+      newStyles.superScript = true;
+    }
+
+    // Color de fuente si fue modificado
+    const colorMatch = style.match(/color:\s*(#[0-9a-fA-F]{3,6}|rgb\([^)]+\))/);
+    if (colorMatch && !colorMatch[1].includes('#000000')) {
+      newStyles.color = colorMatch[1].replace('#', '');
+    }
+
+    node.childNodes.forEach((child) => traverse(child, newStyles));
+  }
+
+  traverse(domNode, {});
+  return runs;
+}
+
+export async function exportToDocx(editorElement, filename = 'Investigacion_Estadistica_APA7.docx') {
   if (!editorElement) return;
 
   const docChildren = [];
   const nodes = Array.from(editorElement.childNodes);
 
-  for (const node of nodes) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim();
+  for (const el of nodes) {
+    if (el.nodeType === Node.TEXT_NODE) {
+      const text = el.textContent.trim();
       if (text) {
         docChildren.push(
           new Paragraph({
             children: [new TextRun({ text, font: 'Times New Roman', size: 24 })],
             spacing: { line: 480, after: 0 },
-            indent: { firstLine: 720 },
+            indent: { firstLine: 720 }, // 1.27 cm APA 7
           })
         );
       }
       continue;
     }
 
-    if (node.nodeType !== Node.ELEMENT_NODE) continue;
-    const el = node;
+    if (el.nodeType !== Node.ELEMENT_NODE) continue;
 
-    // Ignorar indicadores visuales de página en el cuerpo de Word
+    // 1. Ignorar elementos de interfaz visual
     if (
       el.classList.contains('page-number-indicator') ||
-      el.classList.contains('page-number-indicator-page')
+      el.classList.contains('page-number-indicator-page') ||
+      el.classList.contains('no-print')
     ) {
       continue;
     }
 
-    // Salto de página oficial
+    // 2. Salto de página
     if (
       el.classList.contains('apa-page-break') ||
       el.classList.contains('apa-page-break-container') ||
@@ -54,25 +119,32 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // Encabezado
+    // 3. Encabezado institucional (sin sangría de párrafo)
     if (el.classList.contains('no-indent')) {
-      const subLines = el.innerText.split('\n').filter(l => l.trim().length > 0);
-      for (const line of subLines) {
-        docChildren.push(
-          new Paragraph({
-            children: [new TextRun({ text: line, font: 'Times New Roman', size: 24, bold: line.includes('Bollorino') })],
-            spacing: { line: 360, after: 0 },
-          })
-        );
+      const subParagraphs = Array.from(el.querySelectorAll('div, p'));
+      const lines = subParagraphs.length > 0 ? subParagraphs : [el];
+
+      for (const lineEl of lines) {
+        const runs = parseInlineRuns(lineEl);
+        if (runs.length > 0) {
+          docChildren.push(
+            new Paragraph({
+              children: runs,
+              spacing: { line: 360, after: 0 },
+            })
+          );
+        }
       }
       continue;
     }
 
-    // Título Nivel 1
+    // 4. Título Nivel 1 APA (h3) - Centrado y Negrita
     if (el.tagName === 'H3') {
+      const runs = parseInlineRuns(el);
+      runs.forEach((r) => (r.root[1].bold = true));
       docChildren.push(
         new Paragraph({
-          children: [new TextRun({ text: el.innerText.trim(), font: 'Times New Roman', size: 24, bold: true })],
+          children: runs,
           alignment: AlignmentType.CENTER,
           spacing: { line: 480, before: 360, after: 180 },
         })
@@ -80,11 +152,13 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // Título Nivel 2
+    // 5. Título Nivel 2 APA (h4) - Izquierda y Negrita
     if (el.tagName === 'H4') {
+      const runs = parseInlineRuns(el);
+      runs.forEach((r) => (r.root[1].bold = true));
       docChildren.push(
         new Paragraph({
-          children: [new TextRun({ text: el.innerText.trim(), font: 'Times New Roman', size: 24, bold: true })],
+          children: runs,
           alignment: AlignmentType.LEFT,
           spacing: { line: 480, before: 240, after: 120 },
         })
@@ -92,11 +166,12 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // Referencia
-    if (el.classList.contains('apa-reference-item')) {
+    // 6. Referencias bibliográficas (Sangría Francesa oficial: 1.27 cm)
+    if (el.classList.contains('apa-reference-item') || el.classList.contains('indent-hanging')) {
+      const runs = parseInlineRuns(el);
       docChildren.push(
         new Paragraph({
-          children: [new TextRun({ text: el.innerText.trim(), font: 'Times New Roman', size: 24 })],
+          children: runs,
           indent: { left: 720, hanging: 720 },
           spacing: { line: 480, after: 200 },
         })
@@ -104,12 +179,12 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
       continue;
     }
 
-    // Tablas
+    // 7. Tablas estadísticas APA (3 bordes horizontales, sin bordes verticales)
     const tableEl = el.querySelector('table');
     if (tableEl || el.tagName === 'TABLE') {
       const targetTable = tableEl || el;
       const htmlRows = Array.from(targetTable.querySelectorAll('tr'));
-      
+
       const docxRows = htmlRows.map((r, rowIndex) => {
         const isHeader = rowIndex === 0;
         const isLastRow = rowIndex === htmlRows.length - 1;
@@ -117,24 +192,27 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
 
         return new TableRow({
           children: cells.map((cell) => {
+            const cellRuns = parseInlineRuns(cell);
+            if (isHeader) {
+              cellRuns.forEach((run) => (run.root[1].bold = true));
+            }
+
             return new TableCell({
               width: { size: 100 / (cells.length || 1), type: WidthType.PERCENTAGE },
               children: [
                 new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: cell.innerText.trim(),
-                      font: 'Times New Roman',
-                      size: 22,
-                      bold: isHeader || cell.tagName === 'TH',
-                    }),
-                  ],
-                  spacing: { line: 300 },
+                  children: cellRuns,
+                  spacing: { line: 300, after: 60, before: 60 },
                 }),
               ],
               borders: {
-                top: isHeader ? { style: BorderStyle.SINGLE, size: 12, color: '000000' } : { style: BorderStyle.NONE },
-                bottom: isHeader || isLastRow ? { style: BorderStyle.SINGLE, size: isHeader ? 8 : 12, color: '000000' } : { style: BorderStyle.NONE },
+                top: isHeader
+                  ? { style: BorderStyle.SINGLE, size: 12, color: '000000' }
+                  : { style: BorderStyle.NONE },
+                bottom:
+                  isHeader || isLastRow
+                    ? { style: BorderStyle.SINGLE, size: isHeader ? 8 : 12, color: '000000' }
+                    : { style: BorderStyle.NONE },
                 left: { style: BorderStyle.NONE },
                 right: { style: BorderStyle.NONE },
               },
@@ -143,22 +221,23 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
         });
       });
 
-      const tableLabel = el.querySelector('div[style*="font-weight: bold"], div[style*="font-weight:bold"]');
-      const tableTitle = el.querySelector('div[style*="font-style: italic"], div[style*="font-style:italic"]');
-      const tableNote = el.querySelector('div[style*="font-size: 10pt"], div[style*="font-size:10pt"]');
+      // Rótulos de tabla APA
+      const label = el.querySelector('div[style*="font-weight: bold"], div[style*="font-weight:bold"]');
+      const title = el.querySelector('div[style*="font-style: italic"], div[style*="font-style:italic"]');
+      const note = el.querySelector('div[style*="font-size: 10pt"], div[style*="font-size:10pt"]');
 
-      if (tableLabel) {
+      if (label) {
         docChildren.push(
           new Paragraph({
-            children: [new TextRun({ text: tableLabel.innerText.trim(), font: 'Times New Roman', size: 24, bold: true })],
-            spacing: { line: 360, before: 200, after: 40 },
+            children: parseInlineRuns(label),
+            spacing: { line: 360, before: 240, after: 60 },
           })
         );
       }
-      if (tableTitle) {
+      if (title) {
         docChildren.push(
           new Paragraph({
-            children: [new TextRun({ text: tableTitle.innerText.trim(), font: 'Times New Roman', size: 24, italics: true })],
+            children: parseInlineRuns(title),
             spacing: { line: 360, after: 120 },
           })
         );
@@ -166,30 +245,60 @@ export async function exportToDocx(editorElement, filename = 'Trabajo_Estadistic
 
       docChildren.push(new Table({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
 
-      if (tableNote) {
+      if (note) {
         docChildren.push(
           new Paragraph({
-            children: [new TextRun({ text: tableNote.innerText.trim(), font: 'Times New Roman', size: 20 })],
-            spacing: { line: 300, before: 60, after: 200 },
+            children: parseInlineRuns(note),
+            spacing: { line: 300, before: 80, after: 240 },
           })
         );
       }
       continue;
     }
 
-    // Párrafo general
-    const textContent = el.innerText.trim();
-    if (textContent) {
+    // 8. Fórmulas matemáticas
+    if (el.classList.contains('math-formula-box')) {
       docChildren.push(
         new Paragraph({
-          children: [new TextRun({ text: textContent, font: 'Times New Roman', size: 24 })],
-          spacing: { line: 480, after: 0 },
-          indent: { firstLine: 720 },
+          children: parseInlineRuns(el),
+          alignment: AlignmentType.CENTER,
+          spacing: { line: 360, before: 180, after: 180 },
+        })
+      );
+      continue;
+    }
+
+    // 9. Párrafos regulares (detección de alineación y sangrías)
+    const runs = parseInlineRuns(el);
+    if (runs.length > 0) {
+      const style = el.getAttribute('style') || '';
+      let alignment = AlignmentType.LEFT; // Estándar APA 7
+      if (style.includes('text-align: center')) alignment = AlignmentType.CENTER;
+      else if (style.includes('text-align: right')) alignment = AlignmentType.RIGHT;
+      else if (style.includes('text-align: justify')) alignment = AlignmentType.JUSTIFIED;
+
+      // Determinación de sangría
+      let indentConfig = { firstLine: 720 }; // Predeterminado APA: 1.27 cm (720 twips)
+      if (el.classList.contains('indent-none') || el.classList.contains('no-indent')) {
+        indentConfig = undefined;
+      } else if (el.classList.contains('indent-hanging')) {
+        indentConfig = { left: 720, hanging: 720 };
+      } else if (el.classList.contains('indent-block')) {
+        indentConfig = { left: 720 };
+      }
+
+      docChildren.push(
+        new Paragraph({
+          children: runs,
+          alignment,
+          indent: indentConfig,
+          spacing: { line: 480, after: 0 }, // Interlineado doble estricto (480 twips)
         })
       );
     }
   }
 
+  // Creación del documento con márgenes exactos de 2.54 cm (1440 twips)
   const doc = new Document({
     sections: [
       {
