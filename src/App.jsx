@@ -10,6 +10,7 @@ import LayoutModal from './components/LayoutModal';
 import ApaAuditSidebar from './components/ApaAuditSidebar';
 import ModelComparisonDrawer from './components/ModelComparisonDrawer';
 import { exportToDocx } from './components/docxExport';
+import { exportToPdf } from './components/pdfExport';
 
 const STORAGE_KEY = 'apa7_stats_document_draft';
 const MODEL_STORAGE_KEY = 'apa7_teacher_model_data';
@@ -358,6 +359,22 @@ export default function App() {
 
   const marginStyle = `${layout.marginSize}cm`;
 
+  const handleExportPdf = async () => {
+  if (!editorRef.current) return;
+  try {
+    setSaveStatus('Generando archivo PDF...');
+    await exportToPdf(
+      editorRef.current,
+      'Investigacion_Estadistica_APA7.pdf',
+      layout.headerText
+    );
+    setSaveStatus('PDF descargado con éxito');
+  } catch (error) {
+    alert('Error al generar el PDF: ' + error.message);
+    setSaveStatus('Error al generar PDF');
+  }
+};
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Toolbar
@@ -377,6 +394,7 @@ export default function App() {
         onNewBlankPage={handleNewBlankPage}
         onResetDocument={handleResetDocument}
         onExportWord={handleExportWord}
+        onExportPdf={handleExportPdf}
         onUploadModel={handleUploadModel}
         saveStatus={saveStatus}
       />

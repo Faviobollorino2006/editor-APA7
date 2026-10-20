@@ -17,6 +17,7 @@ export default function Toolbar({
   onNewBlankPage,
   onResetDocument,
   onExportWord,
+  onExportPdf,
   onUploadModel,
   saveStatus,
 }) {
@@ -135,9 +136,13 @@ export default function Toolbar({
             <span>📄</span> Word (.docx)
           </button>
 
-          <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs font-medium text-slate-300">
-            PDF
-          </button>
+          <button
+  onClick={onExportPdf}
+  className="bg-rose-700 hover:bg-rose-600 px-3 py-1 rounded text-xs font-bold text-white shadow flex items-center gap-1 transition-colors"
+  title="Descargar directamente el documento en archivo PDF con normas APA 7"
+>
+  <span>📑</span> PDF
+</button>
         </div>
       </div>
 
