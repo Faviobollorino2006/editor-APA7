@@ -12,7 +12,7 @@ import {
   PageBreak,
 } from 'docx';
 
-function parseInlineRuns(domNode) {
+function parseInlineRuns(domNode, initialStyles = {}) {
   const runs = [];
 
   function traverse(node, currentStyles) {
@@ -70,7 +70,7 @@ function parseInlineRuns(domNode) {
     node.childNodes.forEach((child) => traverse(child, newStyles));
   }
 
-  traverse(domNode, {});
+  traverse(domNode, initialStyles);
   return runs;
 }
 
@@ -99,10 +99,9 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
       }
 
       if (el.nodeType !== Node.ELEMENT_NODE) continue;
-
       if (el.classList.contains('no-print') || el.classList.contains('page-header-overlay')) continue;
 
-      // Encabezado sin sangría
+      // 1. Información Preliminar (Encabezado de autor, materia y fecha)
       if (el.classList.contains('no-indent')) {
         const subParagraphs = Array.from(el.querySelectorAll('div, p'));
         const lines = subParagraphs.length > 0 ? subParagraphs : [el];
@@ -115,13 +114,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // Título Nivel 1 (h3)
+      // 2. Título Nivel 1 (h3) - Centrado y Negrita
       if (el.tagName === 'H3') {
-        const runs = parseInlineRuns(el);
-        runs.forEach((r) => (r.root[1].bold = true));
         docChildren.push(
           new Paragraph({
-            children: runs,
+            children: parseInlineRuns(el, { bold: true }),
             alignment: AlignmentType.CENTER,
             spacing: { line: 480, before: 360, after: 180 },
           })
@@ -129,13 +126,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // Título Nivel 2 (h4)
+      // 3. Título Nivel 2 (h4) - Izquierda y Negrita
       if (el.tagName === 'H4') {
-        const runs = parseInlineRuns(el);
-        runs.forEach((r) => (r.root[1].bold = true));
         docChildren.push(
           new Paragraph({
-            children: runs,
+            children: parseInlineRuns(el, { bold: true }),
             alignment: AlignmentType.LEFT,
             spacing: { line: 480, before: 240, after: 120 },
           })
@@ -143,12 +138,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // Referencias (Sangría francesa)
+      // 4. Referencias bibliográficas (Sangría Francesa)
       if (el.classList.contains('apa-reference-item') || el.classList.contains('indent-hanging')) {
-        const runs = parseInlineRuns(el);
         docChildren.push(
           new Paragraph({
-            children: runs,
+            children: parseInlineRuns(el),
             indent: { left: 720, hanging: 720 },
             spacing: { line: 480, after: 200 },
           })
@@ -156,7 +150,7 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // Tablas APA
+      // 5. Tablas APA
       const tableEl = el.querySelector('table');
       if (tableEl || el.tagName === 'TABLE') {
         const targetTable = tableEl || el;
@@ -190,14 +184,14 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         const title = el.querySelector('div[style*="font-style: italic"], div[style*="font-style:italic"]');
         const note = el.querySelector('div[style*="font-size: 10pt"], div[style*="font-size:10pt"]');
 
-        if (label) docChildren.push(new Paragraph({ children: parseInlineRuns(label), spacing: { line: 360, before: 240, after: 60 } }));
-        if (title) docChildren.push(new Paragraph({ children: parseInlineRuns(title), spacing: { line: 360, after: 120 } }));
+        if (label) docChildren.push(new Paragraph({ children: parseInlineRuns(label, { bold: true }), spacing: { line: 360, before: 240, after: 60 } }));
+        if (title) docChildren.push(new Paragraph({ children: parseInlineRuns(title, { italics: true }), spacing: { line: 360, after: 120 } }));
         docChildren.push(new Table({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
         if (note) docChildren.push(new Paragraph({ children: parseInlineRuns(note), spacing: { line: 300, before: 80, after: 240 } }));
         continue;
       }
 
-      // Fórmulas matemáticas
+      // 6. Fórmulas matemáticas
       if (el.classList.contains('math-formula-box')) {
         docChildren.push(
           new Paragraph({
@@ -209,7 +203,7 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // Párrafos regulares
+      // 7. Párrafos regulares con alineación y sangría
       const runs = parseInlineRuns(el);
       if (runs.length > 0) {
         const style = el.getAttribute('style') || '';
@@ -234,7 +228,6 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
       }
     }
 
-    // Salto de página para la siguiente hoja
     if (pageIdx < pages.length - 1) {
       docChildren.push(new Paragraph({ children: [new PageBreak()] }));
     }
