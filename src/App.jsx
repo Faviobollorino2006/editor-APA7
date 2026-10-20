@@ -13,6 +13,8 @@ import { exportToDocx } from './components/docxExport';
 import { exportToPdf } from './components/pdfExport';
 
 const STORAGE_KEY_PAGES = 'apa7_stats_document_pages_v2';
+const STORAGE_KEY_FONT = 'apa7_stats_document_font';
+const STORAGE_KEY_FONT_SIZE = 'apa7_stats_document_font_size';
 const MODEL_STORAGE_KEY = 'apa7_teacher_model_data';
 
 const DEFAULT_PAGE_1 = `
@@ -40,7 +42,11 @@ export default function App() {
   const [pages, setPages] = useState([{ id: 1 }]);
   const pageRefs = useRef([]);
   const activePageIndex = useRef(0);
-  const lastRangeRef = useRef(null); // Guarda la posición exacta del cursor en todo momento
+  const lastRangeRef = useRef(null);
+
+  // Estados Reactivos de Fuente y Tamaño
+  const [docFont, setDocFont] = useState('Times New Roman');
+  const [docFontSize, setDocFontSize] = useState('12pt');
 
   // Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
@@ -76,7 +82,6 @@ export default function App() {
     hasReferences: false,
   });
 
-  // Guarda la ubicación activa del cursor para que nunca se pierda
   const saveCursorPosition = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -85,6 +90,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    const savedFont = localStorage.getItem(STORAGE_KEY_FONT);
+    if (savedFont) setDocFont(savedFont);
+
+    const savedFontSize = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
+    if (savedFontSize) setDocFontSize(savedFontSize);
+
     const saved = localStorage.getItem(STORAGE_KEY_PAGES);
     if (saved) {
       try {
@@ -146,6 +157,8 @@ export default function App() {
 
     try {
       localStorage.setItem(STORAGE_KEY_PAGES, JSON.stringify(pagesHtml));
+      localStorage.setItem(STORAGE_KEY_FONT, docFont);
+      localStorage.setItem(STORAGE_KEY_FONT_SIZE, docFontSize);
       setSaveStatus('Guardado en este equipo');
     } catch (e) {
       setSaveStatus('Memoria llena');
@@ -171,47 +184,150 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  // Motor de Tabulación Nativo por Rangos del DOM
+  // CAMBIO DE FUENTE ROBUSTO (Inmediato global o por selección)
+  const handleFontChange = (newFont) => {
+    setDocFont(newFont);
+
+    let autoSize = docFontSize;
+    if (newFont === 'Times New Roman') autoSize = '12pt';
+    else if (newFont === 'Arial' || newFont === 'Calibri' || newFont === 'Georgia') autoSize = '11pt';
+    setDocFontSize(autoSize);
+
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+
+    // Restaurar foco al editor para que el navegador acepte comandos
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    const savedRange = lastRangeRef.current;
+    const hasSelection = savedRange && !savedRange.collapsed && activeEl.contains(savedRange.commonAncestorContainer);
+
+    if (hasSelection) {
+      // 1. Caso con texto subrayado: cambia solo esa selección
+      try {
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+        document.execCommand('fontName', false, newFont);
+        saveCursorPosition();
+      } catch (e) {}
+    } else {
+      // 2. Caso sin selección (antes de escribir o cambio global): cambia todo el documento
+      pageRefs.current.forEach((pageEl) => {
+        if (!pageEl) return;
+        pageEl.style.fontFamily = newFont;
+        pageEl.style.fontSize = autoSize;
+
+        // Limpiar etiquetas viejas que forzaban la tipografía anterior
+        pageEl.querySelectorAll('*').forEach((el) => {
+          if (el.style && el.style.fontFamily) el.style.fontFamily = '';
+          if (el.hasAttribute('face')) el.removeAttribute('face');
+        });
+      });
+
+      // Configura el cursor para que lo próximo que se escriba salga en la nueva fuente
+      if (savedRange && activeEl.contains(savedRange.commonAncestorContainer)) {
+        try {
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        } catch (e) {}
+      }
+      document.execCommand('fontName', false, newFont);
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_FONT, newFont);
+      localStorage.setItem(STORAGE_KEY_FONT_SIZE, autoSize);
+    } catch (e) {}
+
+    updateStatsAndPersist();
+  };
+
+  // CAMBIO DE TAMAÑO ROBUSTO (Inmediato global o por selección)
+  const handleFontSizeChange = (newSize) => {
+    setDocFontSize(newSize);
+
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+
+    // Restaurar foco
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    const savedRange = lastRangeRef.current;
+    const hasSelection = savedRange && !savedRange.collapsed && activeEl.contains(savedRange.commonAncestorContainer);
+
+    if (hasSelection) {
+      // Caso con selección: escala solo el texto subrayado
+      try {
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+        document.execCommand('fontSize', false, '7');
+        activeEl.querySelectorAll('font[size="7"]').forEach((tag) => {
+          tag.removeAttribute('size');
+          tag.style.fontSize = newSize;
+        });
+        saveCursorPosition();
+      } catch (e) {}
+    } else {
+      // Caso sin selección: cambia el tamaño base de todo el documento
+      pageRefs.current.forEach((pageEl) => {
+        if (!pageEl) return;
+        pageEl.style.fontSize = newSize;
+
+        pageEl.querySelectorAll('p, div, span, td, th').forEach((el) => {
+          if (!el.closest('h3, h4, .page-header-overlay')) {
+            if (el.style && el.style.fontSize) el.style.fontSize = '';
+            if (el.hasAttribute('size')) el.removeAttribute('size');
+          }
+        });
+      });
+
+      if (savedRange && activeEl.contains(savedRange.commonAncestorContainer)) {
+        try {
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        } catch (e) {}
+      }
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize);
+    } catch (e) {}
+
+    updateStatsAndPersist();
+  };
+
+  // Tabulador nativo
   const insertTabAtCursor = () => {
     const activeEl = getActivePageEl();
     if (!activeEl) return;
 
+    activeEl.focus();
     let sel = window.getSelection();
     let range = null;
 
     if (sel && sel.rangeCount > 0) {
       const curRange = sel.getRangeAt(0);
-      if (activeEl.contains(curRange.commonAncestorContainer)) {
-        range = curRange;
-      }
+      if (activeEl.contains(curRange.commonAncestorContainer)) range = curRange;
     }
 
-    // Si el foco se perdió en la barra de herramientas, recuperamos la última posición
     if (!range && lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
       range = lastRangeRef.current;
       sel.removeAllRanges();
       sel.addRange(range);
     }
 
-    // Si aún no hay rango, lo ubicamos al inicio o final del elemento activo
     if (!range) {
-      activeEl.focus();
       sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        range = sel.getRangeAt(0);
-      }
+      if (sel && sel.rangeCount > 0) range = sel.getRangeAt(0);
     }
 
     if (range) {
       range.deleteContents();
-
-      // Espaciado de tabulación real (6 caracteres indivisibles ~ 1.27 cm / 0.5 pulgadas)
-      const tabCharacters = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
-      const tabNode = document.createTextNode(tabCharacters);
-
+      const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0');
       range.insertNode(tabNode);
 
-      // Colocamos el cursor exactamente después de la tabulación
       const newRange = document.createRange();
       newRange.setStartAfter(tabNode);
       newRange.setEndAfter(tabNode);
@@ -220,12 +336,10 @@ export default function App() {
       sel.removeAllRanges();
       sel.addRange(newRange);
       lastRangeRef.current = newRange.cloneRange();
-
       updateStatsAndPersist();
     }
   };
 
-  // Controlador de teclado: intercepta la tecla física Tab
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
 
@@ -250,6 +364,8 @@ export default function App() {
       const nextIdx = pages.length;
       if (pageRefs.current[nextIdx]) {
         pageRefs.current[nextIdx].innerHTML = '<p class="indent-first-line"><br></p>';
+        pageRefs.current[nextIdx].style.fontFamily = docFont;
+        pageRefs.current[nextIdx].style.fontSize = docFontSize;
         pageRefs.current[nextIdx].focus();
         activePageIndex.current = nextIdx;
       }
@@ -277,6 +393,8 @@ export default function App() {
       setTimeout(() => {
         if (pageRefs.current[0]) {
           pageRefs.current[0].innerHTML = '<p class="indent-first-line"><br></p>';
+          pageRefs.current[0].style.fontFamily = docFont;
+          pageRefs.current[0].style.fontSize = docFontSize;
           pageRefs.current[0].focus();
           activePageIndex.current = 0;
         }
@@ -290,8 +408,8 @@ export default function App() {
     if (!el) return;
     el.focus();
     document.execCommand('justifyLeft', false, null);
-    document.execCommand('fontName', false, 'Times New Roman');
-    document.execCommand('fontSize', false, '3');
+    handleFontChange('Times New Roman');
+    handleFontSizeChange('12pt');
 
     const sel = window.getSelection();
     if (sel && sel.anchorNode) {
@@ -350,6 +468,8 @@ export default function App() {
       setTimeout(() => {
         if (pageRefs.current[0]) {
           pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
+          pageRefs.current[0].style.fontFamily = docFont;
+          pageRefs.current[0].style.fontSize = docFontSize;
           activePageIndex.current = 0;
         }
         updateStatsAndPersist();
@@ -373,7 +493,10 @@ export default function App() {
   };
 
   const handleExportWord = async () => {
-    await exportToDocx(pageRefs.current, 'Investigacion_Estadistica_APA7.docx');
+    await exportToDocx(pageRefs.current, 'Investigacion_Estadistica_APA7.docx', {
+      font: docFont,
+      size: docFontSize,
+    });
   };
 
   const handleExportPdf = async () => {
@@ -470,6 +593,10 @@ export default function App() {
         onExportPdf={handleExportPdf}
         onUploadModel={handleUploadModel}
         onInsertTab={insertTabAtCursor}
+        currentFont={docFont}
+        onFontChange={handleFontChange}
+        currentFontSize={docFontSize}
+        onFontSizeChange={handleFontSizeChange}
         saveStatus={saveStatus}
       />
 
@@ -492,9 +619,14 @@ export default function App() {
                 )}
               </div>
 
+              {/* Hoja física con estilos directos reactivos */}
               <div
                 className={`paper-sheet size-${layout.paperSize}`}
-                style={{ padding: marginStyle }}
+                style={{
+                  padding: marginStyle,
+                  fontFamily: docFont,
+                  fontSize: docFontSize,
+                }}
               >
                 <div
                   className="page-header-overlay"
@@ -502,6 +634,7 @@ export default function App() {
                     top: `calc(${marginStyle} / 2)`,
                     left: marginStyle,
                     right: marginStyle,
+                    fontFamily: docFont,
                   }}
                 >
                   <div className="flex justify-between items-center w-full">
@@ -509,7 +642,7 @@ export default function App() {
                       {layout.headerText}
                     </span>
                     {layout.showPageNumber && (
-                      <span className="font-times text-base font-normal text-slate-800">{index + 1}</span>
+                      <span className="text-base font-normal text-slate-800">{index + 1}</span>
                     )}
                   </div>
                 </div>
@@ -527,7 +660,11 @@ export default function App() {
                   onMouseUp={saveCursorPosition}
                   onKeyDown={(e) => handleEditorKeyDown(e, index)}
                   className="editor-body"
-                  style={{ lineHeight: layout.lineHeight }}
+                  style={{
+                    lineHeight: layout.lineHeight,
+                    fontFamily: docFont,
+                    fontSize: docFontSize,
+                  }}
                   spellCheck="true"
                 />
               </div>
@@ -564,9 +701,7 @@ export default function App() {
           <span>{stats.chars} caracteres</span>
         </div>
         <div className="flex items-center space-x-4 text-slate-500">
-          <span>{modelData ? `Modelo: ${modelData.fileName}` : 'Sin modelo de referencia'}</span>
-          <span>|</span>
-          <span>Español (Latinoamérica)</span>
+          <span>Fuente: {docFont} ({docFontSize})</span>
           <span>|</span>
           <span>APA 7.ª Edición</span>
         </div>
