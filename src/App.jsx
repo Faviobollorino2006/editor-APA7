@@ -37,7 +37,6 @@ const DEFAULT_PAGE_1 = `
 `;
 
 export default function App() {
-  // Lista de páginas físicas activas
   const [pages, setPages] = useState([{ id: 1 }]);
   const pageRefs = useRef([]);
   const activePageIndex = useRef(0);
@@ -66,7 +65,7 @@ export default function App() {
 
   const [stats, setStats] = useState({ words: 0, chars: 0, pages: 1 });
   const [editorText, setEditorText] = useState('');
-  const [saveStatus, setSaveStatus] = useState('Guardado');
+  const [saveStatus, setSaveStatus] = useState('Guardado en este equipo');
   const [auditData, setAuditData] = useState({
     hasHeader: false,
     hasTitle: false,
@@ -76,7 +75,6 @@ export default function App() {
     hasReferences: false,
   });
 
-  // Carga inicial y restauración de páginas
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PAGES);
     if (saved) {
@@ -95,12 +93,9 @@ export default function App() {
       } catch (e) {}
     }
 
-    // Inicialización por defecto
     setPages([{ id: 1 }]);
     setTimeout(() => {
-      if (pageRefs.current[0]) {
-        pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
-      }
+      if (pageRefs.current[0]) pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
       updateStatsAndPersist();
     }, 80);
 
@@ -110,7 +105,6 @@ export default function App() {
     }
   }, []);
 
-  // Actualiza estadísticas y persiste el array de páginas en LocalStorage
   const updateStatsAndPersist = () => {
     let totalWords = 0;
     let totalChars = 0;
@@ -130,11 +124,7 @@ export default function App() {
     });
 
     setEditorText(allText);
-    setStats({
-      words: totalWords,
-      chars: totalChars,
-      pages: pages.length,
-    });
+    setStats({ words: totalWords, chars: totalChars, pages: pages.length });
 
     setAuditData({
       hasHeader: pageRefs.current.some((el) => el && el.querySelector('.no-indent')),
@@ -147,7 +137,7 @@ export default function App() {
 
     try {
       localStorage.setItem(STORAGE_KEY_PAGES, JSON.stringify(pagesHtml));
-      setSaveStatus('Guardado en navegador');
+      setSaveStatus('Guardado en este equipo');
     } catch (e) {
       setSaveStatus('Memoria llena');
     }
@@ -171,7 +161,6 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  // Insertar Nueva Hoja en Blanco Independiente (como en Word)
   const handleInsertNewPage = () => {
     const newId = Date.now();
     setPages((prev) => [...prev, { id: newId }]);
@@ -187,13 +176,12 @@ export default function App() {
     }, 60);
   };
 
-  // Eliminar una hoja específica
   const handleDeletePage = (indexToDelete) => {
     if (pages.length <= 1) {
       alert("El documento debe tener al menos una hoja.");
       return;
     }
-    if (window.confirm(`¿Seguro que deseas eliminar la Hoja ${indexToDelete + 1}? Se borrará su contenido.`)) {
+    if (window.confirm(`¿Deseas eliminar la Hoja ${indexToDelete + 1}?`)) {
       setPages((prev) => prev.filter((_, idx) => idx !== indexToDelete));
       pageRefs.current.splice(indexToDelete, 1);
       activePageIndex.current = Math.max(0, indexToDelete - 1);
@@ -201,9 +189,8 @@ export default function App() {
     }
   };
 
-  // Vaciar a una sola hoja en blanco
   const handleNewBlankPage = () => {
-    if (window.confirm("¿Deseas vaciar todo el trabajo y empezar desde una sola hoja en blanco?")) {
+    if (window.confirm("¿Deseas vaciar todo el trabajo y empezar con una sola hoja en blanco?")) {
       setPages([{ id: 1 }]);
       pageRefs.current = [];
       setTimeout(() => {
@@ -217,7 +204,6 @@ export default function App() {
     }
   };
 
-  // Botón Maestro APA 7
   const handleApplyApaDefaultStyle = () => {
     const el = getActivePageEl();
     if (!el) return;
@@ -311,7 +297,7 @@ export default function App() {
     try {
       setSaveStatus('Generando PDF...');
       await exportToPdf(pageRefs.current, 'Investigacion_Estadistica_APA7.pdf', layout.headerText);
-      setSaveStatus('PDF descargado con éxito');
+      setSaveStatus('PDF descargado');
     } catch (e) {
       alert("Error al generar PDF: " + e.message);
     }
@@ -322,7 +308,7 @@ export default function App() {
     if (!file) return;
 
     try {
-      setSaveStatus('Analizando modelo...');
+      setSaveStatus('Leyendo modelo...');
       let html = '';
       let rawText = '';
 
@@ -380,7 +366,7 @@ export default function App() {
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950">
+    <div className="min-h-screen flex flex-col bg-[#edf2f7]">
       <Toolbar
         onInsertHeader={handleInsertHeader}
         onOpenTableModal={() => setIsTableModalOpen(true)}
@@ -404,27 +390,28 @@ export default function App() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Espacio de trabajo (Desk) tipo Word con hojas separadas */}
+        {/* Escritorio Diurno Tipo Word */}
         <main className="flex-1 overflow-y-auto py-10 px-6 flex flex-col items-center">
           {pages.map((page, index) => (
-            <div key={page.id} className="relative mb-12 flex flex-col items-center">
-              {/* Barra superior de la hoja: Etiqueta y botón de eliminar */}
-              <div className="w-full flex items-center justify-between px-2 pb-2 text-xs text-slate-400 no-print">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
-                  Hoja {index + 1} de {pages.length}
+            <div key={page.id} className="relative mb-10 flex flex-col items-center">
+              
+              {/* Cabecera sutil de la página */}
+              <div className="w-full flex items-center justify-between px-2 pb-1.5 text-xs text-slate-500 no-print">
+                <span className="font-sans font-medium text-[11px] text-slate-400">
+                  Página {index + 1} de {pages.length}
                 </span>
                 {pages.length > 1 && (
                   <button
                     onClick={() => handleDeletePage(index)}
-                    className="hover:text-rose-400 text-[11px] px-2 py-0.5 rounded hover:bg-slate-900 transition-colors"
-                    title="Eliminar esta hoja del documento"
+                    className="hover:text-red-600 text-[11px] px-2 py-0.5 rounded hover:bg-slate-200/60 transition-colors"
+                    title="Eliminar esta hoja"
                   >
-                    🗑️ Eliminar Hoja
+                    Eliminar página
                   </button>
                 )}
               </div>
 
-              {/* Hoja Física Carta */}
+              {/* Hoja Física Carta con sombra suave */}
               <div
                 className={`paper-sheet size-${layout.paperSize}`}
                 style={{ padding: marginStyle }}
@@ -439,16 +426,16 @@ export default function App() {
                   }}
                 >
                   <div className="flex justify-between items-center w-full">
-                    <span className="text-xs uppercase tracking-wider text-slate-700">
+                    <span className="text-xs uppercase tracking-wider text-slate-500">
                       {layout.headerText}
                     </span>
                     {layout.showPageNumber && (
-                      <span className="font-times text-base font-normal">{index + 1}</span>
+                      <span className="font-times text-base font-normal text-slate-800">{index + 1}</span>
                     )}
                   </div>
                 </div>
 
-                {/* Área de Escritura de esta Hoja */}
+                {/* Lienzo de Escritura */}
                 <div
                   ref={(el) => (pageRefs.current[index] = el)}
                   contentEditable
@@ -463,12 +450,12 @@ export default function App() {
             </div>
           ))}
 
-          {/* Botón flotante al final del documento para añadir otra hoja */}
+          {/* Botón sobrio para agregar página */}
           <button
             onClick={handleInsertNewPage}
-            className="no-print my-6 px-6 py-3 border-2 border-dashed border-slate-700 hover:border-blue-500 text-slate-400 hover:text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-all hover:bg-slate-900"
+            className="no-print my-4 px-5 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-medium shadow-2xs flex items-center gap-2 transition-all"
           >
-            <span className="text-base text-blue-400">+</span> Añadir Nueva Hoja en Blanco (Hoja {pages.length + 1})
+            <span className="text-blue-700 font-bold">+</span> Agregar Página Siguiente (Página {pages.length + 1})
           </button>
         </main>
 
@@ -487,16 +474,17 @@ export default function App() {
         )}
       </div>
 
-      <footer className="h-7 bg-slate-950 border-t border-slate-800 px-6 flex items-center justify-between text-[11px] text-slate-400 no-print">
+      {/* Barra de Estado Inferior estilo Microsoft Word */}
+      <footer className="h-6 bg-slate-100 border-t border-slate-200 px-6 flex items-center justify-between text-[11px] text-slate-500 font-sans no-print select-none">
         <div className="flex items-center space-x-4">
-          <span>Hojas totales: {stats.pages}</span>
+          <span>Página {pages.length > 1 ? `1-${pages.length}` : '1'} de {stats.pages}</span>
           <span>{stats.words} palabras</span>
           <span>{stats.chars} caracteres</span>
         </div>
-        <div className="flex items-center space-x-3 text-slate-500">
-          <span>{modelData ? `Modelo: ${modelData.fileName}` : 'Sin modelo'}</span>
+        <div className="flex items-center space-x-4 text-slate-500">
+          <span>{modelData ? `Modelo: ${modelData.fileName}` : 'Sin modelo de referencia'}</span>
           <span>|</span>
-          <span>Márgenes: {layout.marginSize} cm</span>
+          <span>Español (Latinoamérica)</span>
           <span>|</span>
           <span>APA 7.ª Edición</span>
         </div>

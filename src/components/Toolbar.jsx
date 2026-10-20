@@ -33,7 +33,7 @@ export default function Toolbar({
   const handleHighlightColor = (color) => execute('hiliteColor', color);
 
   return (
-    <header className="no-print bg-slate-800 border-b border-slate-700 text-slate-200 select-none shadow-md">
+    <header className="no-print bg-white border-b border-slate-200 text-slate-700 select-none shadow-sm">
       <input
         type="file"
         id="changeModelInput"
@@ -43,177 +43,223 @@ export default function Toolbar({
         onChange={onUploadModel}
       />
 
-      {/* Fila 1 */}
-      <div className="px-5 py-2 border-b border-slate-700/60 flex items-center justify-between text-xs">
+      {/* Fila Superior: Título institucional y Acciones de Documento */}
+      <div className="px-6 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
+        
+        {/* Identidad de la herramienta */}
         <div className="flex items-center space-x-3">
-          <span className="font-black text-blue-400 tracking-wider text-sm">APA 7 STATS</span>
-          <span className="text-slate-500">|</span>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('undo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700 transition-colors" title="Deshacer">↶</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('redo')} className="hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700 transition-colors" title="Rehacer">↷</button>
-          <span className="text-slate-500">|</span>
-          <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div className="flex items-center space-x-2">
+            <span className="w-6 h-6 rounded bg-blue-700 text-white font-serif font-bold text-xs flex items-center justify-center shadow-sm">
+              W
+            </span>
+            <span className="font-semibold text-slate-800 tracking-tight text-sm">
+              Editor Académico <span className="text-blue-700 font-bold">APA 7</span>
+            </span>
+          </div>
+          
+          <span className="text-slate-300">|</span>
+
+          {/* Deshacer / Rehacer */}
+          <div className="flex items-center space-x-1">
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => execute('undo')}
+              className="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors"
+              title="Deshacer (Ctrl + Z)"
+            >
+              ↶
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => execute('redo')}
+              className="p-1 hover:bg-slate-100 rounded text-slate-600 hover:text-slate-900 transition-colors"
+              title="Rehacer (Ctrl + Y)"
+            >
+              ↷
+            </button>
+          </div>
+
+          <span className="text-slate-300">|</span>
+
+          {/* Estado de guardado discreto */}
+          <span className="text-[11px] text-slate-500 flex items-center gap-1.5 font-sans">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             {saveStatus}
           </span>
         </div>
 
+        {/* Grupo de Acciones Principales */}
         <div className="flex items-center space-x-2">
+          
+          {/* Botón Maestro APA 7 */}
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onApplyApaDefaultStyle}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-3 py-1 rounded text-xs shadow-md flex items-center gap-1.5"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold px-3 py-1 rounded text-xs transition-colors flex items-center gap-1.5"
             title="Aplica formato APA 7 al párrafo actual"
           >
-            <span>✨</span> Estilo APA 7
+            <span>✓</span> Formato APA 7
           </button>
 
+          {/* Modelo Docente */}
           {hasModelLoaded ? (
             <button
               onClick={onToggleModelDrawer}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-2.5 py-1 rounded text-xs shadow flex items-center gap-1.5"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-medium px-2.5 py-1 rounded text-xs transition-colors"
             >
-              <span>👁️</span> Comparar Modelo
+              Comparar Modelo
             </button>
           ) : (
             <button
               onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              className="bg-blue-900/60 hover:bg-blue-800 border border-blue-600/60 px-2.5 py-1 rounded text-xs text-blue-200 font-semibold shadow flex items-center gap-1.5"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-medium px-2.5 py-1 rounded text-xs transition-colors"
             >
-              <span>📂</span> Cargar Modelo
+              Cargar Modelo
             </button>
           )}
 
-          <button onClick={onOpenLayoutModal} className="bg-indigo-700 hover:bg-indigo-600 px-2.5 py-1 rounded text-xs text-white font-bold shadow flex items-center gap-1">
-            <span>📐</span> Disposición
+          <button
+            onClick={onOpenLayoutModal}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-xs transition-colors"
+          >
+            Disposición
           </button>
 
-          {/* BOTÓN NUEVA HOJA */}
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onInsertNewPage}
-            className="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-xs text-white font-bold shadow flex items-center gap-1 transition-all"
-            title="Despliega una nueva hoja blanca independiente"
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-medium px-2.5 py-1 rounded text-xs transition-colors"
           >
-            <span>+</span> Nueva Hoja
+            + Nueva Hoja
           </button>
 
-          <button onClick={onNewBlankPage} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs text-cyan-300 font-semibold">
-            📄 Hoja en Blanco
+          <button
+            onClick={onToggleAudit}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-xs transition-colors"
+          >
+            Checklist
           </button>
 
-          <button onMouseDown={(e) => e.preventDefault()} onClick={onInsertHeader} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs text-white">
-            + Encabezado
+          <span className="text-slate-300">|</span>
+
+          {/* Exportaciones oficiales de Word y PDF */}
+          <button
+            onClick={onExportWord}
+            className="bg-blue-700 hover:bg-blue-800 text-white font-medium px-3 py-1 rounded text-xs shadow-sm flex items-center gap-1.5 transition-colors"
+          >
+            <span>Descargar</span> Word (.docx)
           </button>
 
-          <button onClick={onOpenTableModal} className="bg-blue-600 hover:bg-blue-500 px-2.5 py-1 rounded text-xs font-semibold text-white shadow">
-            + Tabla
-          </button>
-
-          <button onClick={onOpenFigureModal} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs text-white">
-            + Gráfico
-          </button>
-
-          <button onClick={onOpenMathModal} className="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded text-xs text-white">
-            ∑ Fórmulas
-          </button>
-
-          <button onClick={onOpenSymbolModal} className="bg-cyan-700 hover:bg-cyan-600 px-2.5 py-1 rounded text-xs font-bold text-white shadow flex items-center gap-1">
-            <span>Ω</span> Símbolos
-          </button>
-
-          <button onClick={onOpenReferenceModal} className="bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1 rounded text-xs font-semibold text-white shadow">
-            + Citar / Ref
-          </button>
-
-          <button onClick={onToggleAudit} className="bg-violet-700 hover:bg-violet-600 px-2.5 py-1 rounded text-xs font-bold text-white shadow">
-            ✓ Checklist
-          </button>
-
-          <button onClick={onResetDocument} className="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800/60 px-2 py-1 rounded text-xs">
-            Reiniciar
-          </button>
-
-          <button onClick={onExportWord} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-xs font-bold text-white shadow flex items-center gap-1">
-            <span>📄</span> Word (.docx)
-          </button>
-
-          <button onClick={onExportPdf} className="bg-rose-700 hover:bg-rose-600 px-3 py-1 rounded text-xs font-bold text-white shadow flex items-center gap-1">
-            <span>📑</span> PDF
+          <button
+            onClick={onExportPdf}
+            className="bg-slate-800 hover:bg-slate-900 text-white font-medium px-3 py-1 rounded text-xs shadow-sm transition-colors"
+          >
+            PDF
           </button>
         </div>
       </div>
 
-      {/* Fila 2 */}
-      <div className="px-5 py-2 flex flex-wrap items-center gap-2 text-xs">
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
-          <label className="text-[10px] text-slate-400 mr-1.5">Fuente APA:</label>
-          <select onChange={handleFontChange} defaultValue="Times New Roman" className="bg-transparent text-white outline-none cursor-pointer py-0.5 text-xs font-sans">
-            <option value="Times New Roman" className="bg-slate-800">Times New Roman (12pt)</option>
-            <option value="Arial" className="bg-slate-800">Arial (11pt)</option>
-            <option value="Calibri" className="bg-slate-800">Calibri (11pt)</option>
-            <option value="Georgia" className="bg-slate-800">Georgia (11pt)</option>
+      {/* Fila Inferior: Cinta de Formato y Herramientas (Word Ribbon) */}
+      <div className="px-6 py-1.5 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
+        
+        {/* Fuente */}
+        <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
+          <select
+            onChange={handleFontChange}
+            defaultValue="Times New Roman"
+            className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans pr-1"
+          >
+            <option value="Times New Roman">Times New Roman (12pt)</option>
+            <option value="Arial">Arial (11pt)</option>
+            <option value="Calibri">Calibri (11pt)</option>
+            <option value="Georgia">Georgia (11pt)</option>
           </select>
         </div>
 
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
-          <label className="text-[10px] text-slate-400 mr-1.5">Tamaño:</label>
-          <select onChange={handleFontSizeChange} defaultValue="3" className="bg-transparent text-white outline-none cursor-pointer py-0.5 text-xs">
-            <option value="1" className="bg-slate-800">10 pt (Notas)</option>
-            <option value="2" className="bg-slate-800">11 pt (Arial/Calibri)</option>
-            <option value="3" className="bg-slate-800">12 pt (Times Estándar)</option>
-            <option value="4" className="bg-slate-800">14 pt</option>
-            <option value="5" className="bg-slate-800">18 pt (Títulos)</option>
+        {/* Tamaño */}
+        <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
+          <select
+            onChange={handleFontSizeChange}
+            defaultValue="3"
+            className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans pr-1"
+          >
+            <option value="1">10 pt (Notas)</option>
+            <option value="2">11 pt (Arial/Calibri)</option>
+            <option value="3">12 pt (Times Estándar)</option>
+            <option value="4">14 pt</option>
+            <option value="5">18 pt (Títulos)</option>
           </select>
         </div>
 
-        <div className="h-5 w-px bg-slate-700 mx-1"></div>
+        <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded p-0.5">
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('bold')} className="px-2 py-0.5 font-bold hover:bg-slate-700 rounded" title="Negrita">B</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('italic')} className="px-2 py-0.5 italic font-serif hover:bg-slate-700 rounded" title="Cursiva">I</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('underline')} className="px-2 py-0.5 underline hover:bg-slate-700 rounded" title="Subrayado">U</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('strikeThrough')} className="px-2 py-0.5 line-through hover:bg-slate-700 rounded" title="Tachado">S</button>
+        {/* Negrita, Cursiva, Subrayado, Tachado */}
+        <div className="flex items-center bg-white border border-slate-200 rounded p-0.5 shadow-2xs">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('bold')} className="px-2 py-0.5 font-bold text-slate-700 hover:bg-slate-100 rounded" title="Negrita">B</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('italic')} className="px-2 py-0.5 italic font-serif text-slate-700 hover:bg-slate-100 rounded" title="Cursiva">I</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('underline')} className="px-2 py-0.5 underline text-slate-700 hover:bg-slate-100 rounded" title="Subrayado">U</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('strikeThrough')} className="px-2 py-0.5 line-through text-slate-700 hover:bg-slate-100 rounded" title="Tachado">S</button>
         </div>
 
-        <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded px-2 py-0.5">
+        {/* Color y Resaltado */}
+        <div className="flex items-center space-x-1.5 bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
           <div className="flex items-center gap-1" title="Color de Fuente">
-            <span className="text-[10px] text-slate-400 font-bold">A</span>
-            <input type="color" defaultValue="#000000" onChange={handleTextColorChange} className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent" />
+            <span className="text-[11px] font-bold text-slate-600">A</span>
+            <input type="color" defaultValue="#000000" onChange={handleTextColorChange} className="w-3.5 h-3.5 rounded cursor-pointer border-0 bg-transparent" />
           </div>
-          <div className="h-4 w-px bg-slate-700"></div>
+          <div className="h-3 w-px bg-slate-200"></div>
           <div className="flex items-center gap-1" title="Resaltado de Texto">
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('#fef08a')} className="w-3.5 h-3.5 rounded-full bg-yellow-300 border border-yellow-500 hover:scale-110" title="Resaltar Amarillo"></button>
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('#bbf7d0')} className="w-3.5 h-3.5 rounded-full bg-green-300 border border-green-500 hover:scale-110" title="Resaltar Verde"></button>
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('transparent')} className="text-[10px] text-slate-400 hover:text-white px-1" title="Quitar Resaltado">✕</button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('#fef08a')} className="w-3 h-3 rounded-full bg-yellow-300 border border-yellow-400 hover:scale-110" title="Resaltar Amarillo"></button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('#bbf7d0')} className="w-3 h-3 rounded-full bg-green-300 border border-green-400 hover:scale-110" title="Resaltar Verde"></button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleHighlightColor('transparent')} className="text-[10px] text-slate-400 hover:text-slate-700 px-0.5" title="Quitar">✕</button>
           </div>
         </div>
 
-        <div className="h-5 w-px bg-slate-700 mx-1"></div>
+        <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded p-0.5">
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyLeft')} className="px-2.5 py-0.5 hover:bg-slate-700 rounded text-slate-300 font-medium" title="Izquierda">⇤ Izq</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyCenter')} className="px-2.5 py-0.5 hover:bg-slate-700 rounded text-slate-300 font-medium" title="Centrar">≡ Centro</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyRight')} className="px-2.5 py-0.5 hover:bg-slate-700 rounded text-slate-300 font-medium" title="Derecha">⇥ Der</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyFull')} className="px-2.5 py-0.5 hover:bg-slate-700 rounded text-slate-300 font-medium" title="Justificado">⇎ Justificado</button>
+        {/* Alineaciones */}
+        <div className="flex items-center bg-white border border-slate-200 rounded p-0.5 shadow-2xs">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyLeft')} className="px-2 py-0.5 hover:bg-slate-100 rounded text-slate-700" title="Izquierda (APA)">⇤ Izq</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyCenter')} className="px-2 py-0.5 hover:bg-slate-100 rounded text-slate-700" title="Centrado">≡ Centro</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyRight')} className="px-2 py-0.5 hover:bg-slate-100 rounded text-slate-700" title="Derecha">⇥ Der</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('justifyFull')} className="px-2 py-0.5 hover:bg-slate-100 rounded text-slate-700" title="Justificado">⇎ Justificado</button>
         </div>
 
-        <div className="h-5 w-px bg-slate-700 mx-1"></div>
+        <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
-          <label className="text-[10px] text-slate-400 mr-1.5">Sangría:</label>
-          <select onChange={(e) => onApplyIndentStyle(e.target.value)} defaultValue="firstLine" className="bg-transparent text-white outline-none cursor-pointer py-0.5 text-xs font-sans">
-            <option value="firstLine" className="bg-slate-800">1.ª Línea (1.27 cm APA)</option>
-            <option value="hanging" className="bg-slate-800">Francesa (Referencias)</option>
-            <option value="none" className="bg-slate-800">Sin Sangría (0 cm)</option>
-            <option value="block" className="bg-slate-800">Cita en Bloque (1.27 cm total)</option>
+        {/* Sangría */}
+        <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
+          <label className="text-[10px] text-slate-400 mr-1.5 font-medium">Sangría:</label>
+          <select onChange={(e) => onApplyIndentStyle(e.target.value)} defaultValue="firstLine" className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans">
+            <option value="firstLine">1.ª Línea (1.27 cm APA)</option>
+            <option value="hanging">Francesa (Referencias)</option>
+            <option value="none">Sin Sangría</option>
+            <option value="block">Cita en Bloque</option>
           </select>
         </div>
 
-        <div className="flex items-center bg-slate-900 border border-slate-700 rounded p-0.5">
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('insertUnorderedList')} className="px-2 py-0.5 hover:bg-slate-700 rounded text-slate-300">• Lista</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('insertOrderedList')} className="px-2 py-0.5 hover:bg-slate-700 rounded text-slate-300">1. Lista</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('subscript')} className="px-2 py-0.5 hover:bg-slate-700 rounded text-slate-300">x<sub>2</sub></button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => execute('superscript')} className="px-2 py-0.5 hover:bg-slate-700 rounded text-slate-300">x<sup>2</sup></button>
+        <div className="h-4 w-px bg-slate-200 mx-1"></div>
+
+        {/* Herramientas de Inserción Formal */}
+        <div className="flex items-center space-x-1">
+          <button onMouseDown={(e) => e.preventDefault()} onClick={onInsertHeader} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
+            + Encabezado
+          </button>
+          <button onClick={onOpenTableModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
+            + Tabla
+          </button>
+          <button onClick={onOpenFigureModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
+            + Gráfico
+          </button>
+          <button onClick={onOpenMathModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
+            ∑ Fórmulas
+          </button>
+          <button onClick={onOpenSymbolModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-serif font-bold">
+            Ω Símbolos
+          </button>
+          <button onClick={onOpenReferenceModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
+            + Cita / Ref
+          </button>
         </div>
       </div>
     </header>
