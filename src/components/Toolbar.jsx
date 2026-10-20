@@ -32,8 +32,8 @@ export default function Toolbar({
   const handleHighlightColor = (color) => execute('hiliteColor', color);
 
   return (
-    <div className="bg-slate-800 border-b border-slate-700 text-slate-200 select-none shadow-md">
-      <input
+// Cambia la línea de apertura del contenedor por:
+<header className="no-print bg-slate-800 border-b border-slate-700 text-slate-200 select-none shadow-md">      <input
         type="file"
         id="changeModelInput"
         ref={fileInputRef}
@@ -249,6 +249,6 @@ export default function Toolbar({
           <button onClick={() => execute('superscript')} className="px-2 py-0.5 hover:bg-slate-700 rounded text-slate-300" title="Superíndice">x<sup>2</sup></button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
