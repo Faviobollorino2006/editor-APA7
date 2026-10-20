@@ -295,11 +295,12 @@ export default function App() {
 
   const handleExportPdf = async () => {
     try {
-      setSaveStatus('Generando PDF...');
-      await exportToPdf(pageRefs.current, 'Investigacion_Estadistica_APA7.pdf', layout.headerText);
-      setSaveStatus('PDF descargado');
+      setSaveStatus('Generando archivo PDF...');
+      await exportToPdf(null, 'Investigacion_Estadistica_APA7.pdf');
+      setSaveStatus('PDF descargado con éxito');
     } catch (e) {
-      alert("Error al generar PDF: " + e.message);
+      alert("Error al generar el PDF: " + e.message);
+      setSaveStatus('Error al generar PDF');
     }
   };
 
