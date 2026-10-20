@@ -12,7 +12,7 @@ import {
   PageBreak,
 } from 'docx';
 
-function parseInlineRuns(domNode, initialStyles = {}) {
+function parseInlineRuns(domNode, initialStyles = {}, defaultFont = 'Times New Roman', defaultSize = 24) {
   const runs = [];
 
   function traverse(node, currentStyles) {
@@ -22,8 +22,8 @@ function parseInlineRuns(domNode, initialStyles = {}) {
         runs.push(
           new TextRun({
             text: text,
-            font: currentStyles.font || 'Times New Roman',
-            size: currentStyles.size || 24,
+            font: currentStyles.font || defaultFont,
+            size: currentStyles.size || defaultSize,
             bold: currentStyles.bold || false,
             italics: currentStyles.italics || false,
             underline: currentStyles.underline ? {} : undefined,
@@ -74,9 +74,17 @@ function parseInlineRuns(domNode, initialStyles = {}) {
   return runs;
 }
 
-export async function exportToDocx(editorElements, filename = 'Investigacion_Estadistica_APA7.docx') {
+export async function exportToDocx(
+  editorElements,
+  filename = 'Investigacion_Estadistica_APA7.docx',
+  options = { font: 'Times New Roman', size: '12pt' }
+) {
   const pages = Array.isArray(editorElements) ? editorElements.filter(Boolean) : [editorElements].filter(Boolean);
   if (pages.length === 0) return;
+
+  const defaultFont = options.font || 'Times New Roman';
+  const ptNum = parseInt(options.size) || 12;
+  const defaultSizeInHalfPoints = ptNum * 2; // 12pt = 24 twips
 
   const docChildren = [];
 
@@ -89,7 +97,7 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         if (text) {
           docChildren.push(
             new Paragraph({
-              children: [new TextRun({ text, font: 'Times New Roman', size: 24 })],
+              children: [new TextRun({ text, font: defaultFont, size: defaultSizeInHalfPoints })],
               spacing: { line: 480, after: 0 },
               indent: { firstLine: 720 },
             })
@@ -101,12 +109,12 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
       if (el.nodeType !== Node.ELEMENT_NODE) continue;
       if (el.classList.contains('no-print') || el.classList.contains('page-header-overlay')) continue;
 
-      // 1. Información Preliminar (Encabezado de autor, materia y fecha)
+      // 1. Encabezado institucional
       if (el.classList.contains('no-indent')) {
         const subParagraphs = Array.from(el.querySelectorAll('div, p'));
         const lines = subParagraphs.length > 0 ? subParagraphs : [el];
         for (const lineEl of lines) {
-          const runs = parseInlineRuns(lineEl);
+          const runs = parseInlineRuns(lineEl, {}, defaultFont, defaultSizeInHalfPoints);
           if (runs.length > 0) {
             docChildren.push(new Paragraph({ children: runs, spacing: { line: 360, after: 0 } }));
           }
@@ -114,11 +122,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // 2. Título Nivel 1 (h3) - Centrado y Negrita
+      // 2. Título Nivel 1 (h3)
       if (el.tagName === 'H3') {
         docChildren.push(
           new Paragraph({
-            children: parseInlineRuns(el, { bold: true }),
+            children: parseInlineRuns(el, { bold: true }, defaultFont, defaultSizeInHalfPoints),
             alignment: AlignmentType.CENTER,
             spacing: { line: 480, before: 360, after: 180 },
           })
@@ -126,11 +134,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // 3. Título Nivel 2 (h4) - Izquierda y Negrita
+      // 3. Título Nivel 2 (h4)
       if (el.tagName === 'H4') {
         docChildren.push(
           new Paragraph({
-            children: parseInlineRuns(el, { bold: true }),
+            children: parseInlineRuns(el, { bold: true }, defaultFont, defaultSizeInHalfPoints),
             alignment: AlignmentType.LEFT,
             spacing: { line: 480, before: 240, after: 120 },
           })
@@ -138,11 +146,11 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // 4. Referencias bibliográficas (Sangría Francesa)
+      // 4. Referencias (Sangría francesa)
       if (el.classList.contains('apa-reference-item') || el.classList.contains('indent-hanging')) {
         docChildren.push(
           new Paragraph({
-            children: parseInlineRuns(el),
+            children: parseInlineRuns(el, {}, defaultFont, defaultSizeInHalfPoints),
             indent: { left: 720, hanging: 720 },
             spacing: { line: 480, after: 200 },
           })
@@ -163,7 +171,7 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
 
           return new TableRow({
             children: cells.map((cell) => {
-              const cellRuns = parseInlineRuns(cell);
+              const cellRuns = parseInlineRuns(cell, {}, defaultFont, Math.max(20, defaultSizeInHalfPoints - 2));
               if (isHeader) cellRuns.forEach((run) => (run.root[1].bold = true));
 
               return new TableCell({
@@ -184,10 +192,10 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         const title = el.querySelector('div[style*="font-style: italic"], div[style*="font-style:italic"]');
         const note = el.querySelector('div[style*="font-size: 10pt"], div[style*="font-size:10pt"]');
 
-        if (label) docChildren.push(new Paragraph({ children: parseInlineRuns(label, { bold: true }), spacing: { line: 360, before: 240, after: 60 } }));
-        if (title) docChildren.push(new Paragraph({ children: parseInlineRuns(title, { italics: true }), spacing: { line: 360, after: 120 } }));
+        if (label) docChildren.push(new Paragraph({ children: parseInlineRuns(label, { bold: true }, defaultFont, defaultSizeInHalfPoints), spacing: { line: 360, before: 240, after: 60 } }));
+        if (title) docChildren.push(new Paragraph({ children: parseInlineRuns(title, { italics: true }, defaultFont, defaultSizeInHalfPoints), spacing: { line: 360, after: 120 } }));
         docChildren.push(new Table({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
-        if (note) docChildren.push(new Paragraph({ children: parseInlineRuns(note), spacing: { line: 300, before: 80, after: 240 } }));
+        if (note) docChildren.push(new Paragraph({ children: parseInlineRuns(note, {}, defaultFont, 20), spacing: { line: 300, before: 80, after: 240 } }));
         continue;
       }
 
@@ -195,7 +203,7 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
       if (el.classList.contains('math-formula-box')) {
         docChildren.push(
           new Paragraph({
-            children: parseInlineRuns(el),
+            children: parseInlineRuns(el, {}, defaultFont, defaultSizeInHalfPoints),
             alignment: AlignmentType.CENTER,
             spacing: { line: 360, before: 180, after: 180 },
           })
@@ -203,8 +211,8 @@ export async function exportToDocx(editorElements, filename = 'Investigacion_Est
         continue;
       }
 
-      // 7. Párrafos regulares con alineación y sangría
-      const runs = parseInlineRuns(el);
+      // 7. Párrafos generales
+      const runs = parseInlineRuns(el, {}, defaultFont, defaultSizeInHalfPoints);
       if (runs.length > 0) {
         const style = el.getAttribute('style') || '';
         let alignment = AlignmentType.LEFT;

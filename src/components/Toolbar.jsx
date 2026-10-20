@@ -20,6 +20,10 @@ export default function Toolbar({
   onExportPdf,
   onUploadModel,
   onInsertTab,
+  currentFont,
+  onFontChange,
+  currentFontSize,
+  onFontSizeChange,
   saveStatus,
 }) {
   const fileInputRef = useRef(null);
@@ -28,8 +32,6 @@ export default function Toolbar({
     document.execCommand(cmd, false, val);
   };
 
-  const handleFontChange = (e) => execute('fontName', e.target.value);
-  const handleFontSizeChange = (e) => execute('fontSize', e.target.value);
   const handleTextColorChange = (e) => execute('foreColor', e.target.value);
   const handleHighlightColor = (color) => execute('hiliteColor', color);
 
@@ -44,7 +46,7 @@ export default function Toolbar({
         onChange={onUploadModel}
       />
 
-      {/* Fila Superior: Título institucional y Acciones Principales */}
+      {/* Fila Superior: Título y Acciones Principales */}
       <div className="px-6 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
@@ -167,13 +169,14 @@ export default function Toolbar({
         </div>
       </div>
 
-      {/* Fila Inferior: Formato, Alineaciones, Sangría y Tabulación */}
+      {/* Fila Inferior: Formato Reactivo Inmediato */}
       <div className="px-6 py-1.5 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
-        {/* Fuente */}
+        
+        {/* Selector de Fuente */}
         <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
           <select
-            onChange={handleFontChange}
-            defaultValue="Times New Roman"
+            value={currentFont}
+            onChange={(e) => onFontChange(e.target.value)}
             className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans pr-1"
           >
             <option value="Times New Roman">Times New Roman (12pt)</option>
@@ -183,18 +186,18 @@ export default function Toolbar({
           </select>
         </div>
 
-        {/* Tamaño */}
+        {/* Selector de Tamaño */}
         <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
           <select
-            onChange={handleFontSizeChange}
-            defaultValue="3"
+            value={currentFontSize}
+            onChange={(e) => onFontSizeChange(e.target.value)}
             className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans pr-1"
           >
-            <option value="1">10 pt (Notas)</option>
-            <option value="2">11 pt (Arial/Calibri)</option>
-            <option value="3">12 pt (Times Estándar)</option>
-            <option value="4">14 pt</option>
-            <option value="5">18 pt (Títulos)</option>
+            <option value="10pt">10 pt (Notas)</option>
+            <option value="11pt">11 pt (Arial/Calibri)</option>
+            <option value="12pt">12 pt (Times Estándar)</option>
+            <option value="14pt">14 pt</option>
+            <option value="18pt">18 pt (Títulos)</option>
           </select>
         </div>
 
@@ -246,7 +249,6 @@ export default function Toolbar({
             </select>
           </div>
 
-          {/* Botón Tabulador */}
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={onInsertTab}
@@ -259,7 +261,7 @@ export default function Toolbar({
 
         <div className="h-4 w-px bg-slate-200 mx-1"></div>
 
-        {/* Modales y Herramientas */}
+        {/* Herramientas de Inserción */}
         <div className="flex items-center space-x-1">
           <button onMouseDown={(e) => e.preventDefault()} onClick={onInsertHeader} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
             + Encabezado
