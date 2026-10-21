@@ -3,7 +3,10 @@
 @tailwind utilities;
 
 /* Lienzo de escritorio tipo Word / Google Docs */
-body {
+/* Reemplaza el bloque de body en src/index.css por este: */
+html, body {
+  height: 100%;
+  overflow: hidden; /* Evita que la ventana completa haga scroll y oculte la barra */
   background-color: #edf2f7;
   color: #1e293b;
   margin: 0;

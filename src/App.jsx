@@ -42,6 +42,8 @@ export default function App() {
   const [pages, setPages] = useState([{ id: 1 }]);
   const pageRefs = useRef([]);
   const activePageIndex = useRef(0);
+  const [currentVisiblePage, setCurrentVisiblePage] = useState(1);
+  const mainScrollRef = useRef(null);
   const lastRangeRef = useRef(null);
 
   // Estados Reactivos de Fuente y Tamaño
@@ -125,6 +127,34 @@ export default function App() {
     }
   }, []);
 
+  // Detector de movimiento continuo de desplazamiento (Scroll Spy para hojas)
+  const handleScrollTracking = () => {
+    if (!mainScrollRef.current) return;
+    const containerTop = mainScrollRef.current.getBoundingClientRect().top;
+
+    pageRefs.current.forEach((el, index) => {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // Si la hoja se encuentra en el tercio superior de la vista
+      if (rect.top - containerTop <= 250 && rect.bottom - containerTop >= 150) {
+        setCurrentVisiblePage(index + 1);
+        activePageIndex.current = index;
+      }
+    });
+  };
+
+  // Función de Desplazamiento Continuo y Suave hacia una hoja
+  const scrollToPage = (index) => {
+    if (pageRefs.current[index]) {
+      pageRefs.current[index].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      activePageIndex.current = index;
+      setCurrentVisiblePage(index + 1);
+    }
+  };
+
   const updateStatsAndPersist = () => {
     let totalWords = 0;
     let totalChars = 0;
@@ -184,10 +214,8 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  // CAMBIO DE FUENTE ROBUSTO (Inmediato global o por selección)
   const handleFontChange = (newFont) => {
     setDocFont(newFont);
-
     let autoSize = docFontSize;
     if (newFont === 'Times New Roman') autoSize = '12pt';
     else if (newFont === 'Arial' || newFont === 'Calibri' || newFont === 'Georgia') autoSize = '11pt';
@@ -195,8 +223,6 @@ export default function App() {
 
     const activeEl = getActivePageEl();
     if (!activeEl) return;
-
-    // Restaurar foco al editor para que el navegador acepte comandos
     activeEl.focus();
 
     const sel = window.getSelection();
@@ -204,7 +230,6 @@ export default function App() {
     const hasSelection = savedRange && !savedRange.collapsed && activeEl.contains(savedRange.commonAncestorContainer);
 
     if (hasSelection) {
-      // 1. Caso con texto subrayado: cambia solo esa selección
       try {
         sel.removeAllRanges();
         sel.addRange(savedRange);
@@ -212,25 +237,17 @@ export default function App() {
         saveCursorPosition();
       } catch (e) {}
     } else {
-      // 2. Caso sin selección (antes de escribir o cambio global): cambia todo el documento
       pageRefs.current.forEach((pageEl) => {
         if (!pageEl) return;
         pageEl.style.fontFamily = newFont;
         pageEl.style.fontSize = autoSize;
-
-        // Limpiar etiquetas viejas que forzaban la tipografía anterior
         pageEl.querySelectorAll('*').forEach((el) => {
           if (el.style && el.style.fontFamily) el.style.fontFamily = '';
           if (el.hasAttribute('face')) el.removeAttribute('face');
         });
       });
-
-      // Configura el cursor para que lo próximo que se escriba salga en la nueva fuente
       if (savedRange && activeEl.contains(savedRange.commonAncestorContainer)) {
-        try {
-          sel.removeAllRanges();
-          sel.addRange(savedRange);
-        } catch (e) {}
+        try { sel.removeAllRanges(); sel.addRange(savedRange); } catch (e) {}
       }
       document.execCommand('fontName', false, newFont);
     }
@@ -239,18 +256,13 @@ export default function App() {
       localStorage.setItem(STORAGE_KEY_FONT, newFont);
       localStorage.setItem(STORAGE_KEY_FONT_SIZE, autoSize);
     } catch (e) {}
-
     updateStatsAndPersist();
   };
 
-  // CAMBIO DE TAMAÑO ROBUSTO (Inmediato global o por selección)
   const handleFontSizeChange = (newSize) => {
     setDocFontSize(newSize);
-
     const activeEl = getActivePageEl();
     if (!activeEl) return;
-
-    // Restaurar foco
     activeEl.focus();
 
     const sel = window.getSelection();
@@ -258,7 +270,6 @@ export default function App() {
     const hasSelection = savedRange && !savedRange.collapsed && activeEl.contains(savedRange.commonAncestorContainer);
 
     if (hasSelection) {
-      // Caso con selección: escala solo el texto subrayado
       try {
         sel.removeAllRanges();
         sel.addRange(savedRange);
@@ -270,11 +281,9 @@ export default function App() {
         saveCursorPosition();
       } catch (e) {}
     } else {
-      // Caso sin selección: cambia el tamaño base de todo el documento
       pageRefs.current.forEach((pageEl) => {
         if (!pageEl) return;
         pageEl.style.fontSize = newSize;
-
         pageEl.querySelectorAll('p, div, span, td, th').forEach((el) => {
           if (!el.closest('h3, h4, .page-header-overlay')) {
             if (el.style && el.style.fontSize) el.style.fontSize = '';
@@ -282,27 +291,20 @@ export default function App() {
           }
         });
       });
-
       if (savedRange && activeEl.contains(savedRange.commonAncestorContainer)) {
-        try {
-          sel.removeAllRanges();
-          sel.addRange(savedRange);
-        } catch (e) {}
+        try { sel.removeAllRanges(); sel.addRange(savedRange); } catch (e) {}
       }
     }
 
     try {
       localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize);
     } catch (e) {}
-
     updateStatsAndPersist();
   };
 
-  // Tabulador nativo
   const insertTabAtCursor = () => {
     const activeEl = getActivePageEl();
     if (!activeEl) return;
-
     activeEl.focus();
     let sel = window.getSelection();
     let range = null;
@@ -327,12 +329,10 @@ export default function App() {
       range.deleteContents();
       const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0');
       range.insertNode(tabNode);
-
       const newRange = document.createRange();
       newRange.setStartAfter(tabNode);
       newRange.setEndAfter(tabNode);
       newRange.collapse(true);
-
       sel.removeAllRanges();
       sel.addRange(newRange);
       lastRangeRef.current = newRange.cloneRange();
@@ -342,7 +342,6 @@ export default function App() {
 
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
-
     if (e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();
@@ -356,6 +355,7 @@ export default function App() {
     }
   };
 
+  // Crear nueva hoja y deslizar la vista hacia ella de forma continua
   const handleInsertNewPage = () => {
     const newId = Date.now();
     setPages((prev) => [...prev, { id: newId }]);
@@ -367,7 +367,7 @@ export default function App() {
         pageRefs.current[nextIdx].style.fontFamily = docFont;
         pageRefs.current[nextIdx].style.fontSize = docFontSize;
         pageRefs.current[nextIdx].focus();
-        activePageIndex.current = nextIdx;
+        scrollToPage(nextIdx); // Deslizamiento continuo hacia la nueva hoja
       }
       updateStatsAndPersist();
     }, 60);
@@ -381,7 +381,8 @@ export default function App() {
     if (window.confirm(`¿Deseas eliminar la Hoja ${indexToDelete + 1}?`)) {
       setPages((prev) => prev.filter((_, idx) => idx !== indexToDelete));
       pageRefs.current.splice(indexToDelete, 1);
-      activePageIndex.current = Math.max(0, indexToDelete - 1);
+      const targetIdx = Math.max(0, indexToDelete - 1);
+      scrollToPage(targetIdx);
       setTimeout(() => updateStatsAndPersist(), 60);
     }
   };
@@ -396,7 +397,7 @@ export default function App() {
           pageRefs.current[0].style.fontFamily = docFont;
           pageRefs.current[0].style.fontSize = docFontSize;
           pageRefs.current[0].focus();
-          activePageIndex.current = 0;
+          scrollToPage(0);
         }
         updateStatsAndPersist();
       }, 60);
@@ -470,7 +471,7 @@ export default function App() {
           pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
           pageRefs.current[0].style.fontFamily = docFont;
           pageRefs.current[0].style.fontSize = docFontSize;
-          activePageIndex.current = 0;
+          scrollToPage(0);
         }
         updateStatsAndPersist();
       }, 60);
@@ -572,7 +573,8 @@ export default function App() {
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#edf2f7]">
+    <div className="h-screen w-screen flex flex-col bg-[#edf2f7] overflow-hidden select-none">
+      {/* 1. BARRA DE HERRAMIENTAS: Inamovible en la parte superior */}
       <Toolbar
         onInsertHeader={handleInsertHeader}
         onOpenTableModal={() => setIsTableModalOpen(true)}
@@ -600,10 +602,16 @@ export default function App() {
         saveStatus={saveStatus}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-y-auto py-10 px-6 flex flex-col items-center">
+      {/* 2. ÁREA DE TRABAJO CON DESPLAZAMIENTO SUAVE Y SEGUIMIENTO CONTINUO */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <main
+          ref={mainScrollRef}
+          onScroll={handleScrollTracking}
+          className="flex-1 overflow-y-auto py-10 px-6 flex flex-col items-center scroll-smooth"
+        >
           {pages.map((page, index) => (
-            <div key={page.id} className="relative mb-10 flex flex-col items-center">
+            <div key={page.id} className="relative mb-12 flex flex-col items-center">
+              {/* Cabecera sutil de página */}
               <div className="w-full flex items-center justify-between px-2 pb-1.5 text-xs text-slate-500 no-print">
                 <span className="font-sans font-medium text-[11px] text-slate-400">
                   Página {index + 1} de {pages.length}
@@ -619,7 +627,7 @@ export default function App() {
                 )}
               </div>
 
-              {/* Hoja física con estilos directos reactivos */}
+              {/* Hoja Física Carta */}
               <div
                 className={`paper-sheet size-${layout.paperSize}`}
                 style={{
@@ -628,6 +636,7 @@ export default function App() {
                   fontSize: docFontSize,
                 }}
               >
+                {/* Encabezado Superior APA */}
                 <div
                   className="page-header-overlay"
                   style={{
@@ -647,6 +656,7 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Lienzo de Escritura */}
                 <div
                   ref={(el) => (pageRefs.current[index] = el)}
                   contentEditable
@@ -654,12 +664,13 @@ export default function App() {
                   onInput={() => handleEditorInput(index)}
                   onFocus={() => {
                     activePageIndex.current = index;
+                    setCurrentVisiblePage(index + 1);
                     saveCursorPosition();
                   }}
                   onKeyUp={saveCursorPosition}
                   onMouseUp={saveCursorPosition}
                   onKeyDown={(e) => handleEditorKeyDown(e, index)}
-                  className="editor-body"
+                  className="editor-body select-text"
                   style={{
                     lineHeight: layout.lineHeight,
                     fontFamily: docFont,
@@ -671,13 +682,56 @@ export default function App() {
             </div>
           ))}
 
+          {/* Botón sobrio para agregar página */}
           <button
             onClick={handleInsertNewPage}
-            className="no-print my-4 px-5 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-medium shadow-2xs flex items-center gap-2 transition-all"
+            className="no-print my-6 px-6 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-medium shadow-2xs flex items-center gap-2 transition-all hover:shadow-xs"
           >
             <span className="text-blue-700 font-bold">+</span> Agregar Página Siguiente (Página {pages.length + 1})
           </button>
         </main>
+
+        {/* 3. DOCK FLOTANTE DE MOVIMIENTO CONTINUO (Acompaña la vista en todo momento) */}
+        {pages.length > 1 && (
+          <aside className="no-print absolute right-6 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm border border-slate-200/90 shadow-lg rounded-full py-3 px-2 flex flex-col items-center gap-2 z-20">
+            {/* Subir a hoja anterior */}
+            <button
+              onClick={() => scrollToPage(Math.max(0, currentVisiblePage - 2))}
+              disabled={currentVisiblePage <= 1}
+              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold"
+              title="Desplazarse a la hoja anterior"
+            >
+              ▲
+            </button>
+
+            {/* Indicador de página actual */}
+            <div className="text-[11px] font-sans font-bold text-slate-700 py-1 px-1.5 rounded text-center leading-none">
+              <span className="text-blue-700 text-sm block">{currentVisiblePage}</span>
+              <span className="text-[9px] text-slate-400">de {pages.length}</span>
+            </div>
+
+            {/* Bajar a hoja siguiente */}
+            <button
+              onClick={() => scrollToPage(Math.min(pages.length - 1, currentVisiblePage))}
+              disabled={currentVisiblePage >= pages.length}
+              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold"
+              title="Desplazarse a la siguiente hoja"
+            >
+              ▼
+            </button>
+
+            <div className="w-4 h-px bg-slate-200 my-0.5"></div>
+
+            {/* Botón rápido para añadir hoja */}
+            <button
+              onClick={handleInsertNewPage}
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors text-sm font-bold"
+              title="Añadir nueva hoja y desplazarse a ella"
+            >
+              +
+            </button>
+          </aside>
+        )}
 
         {isAuditOpen && (
           <ApaAuditSidebar isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} auditData={auditData} />
@@ -694,9 +748,10 @@ export default function App() {
         )}
       </div>
 
+      {/* 4. BARRA DE ESTADO INFERIOR TIPO WORD */}
       <footer className="h-6 bg-slate-100 border-t border-slate-200 px-6 flex items-center justify-between text-[11px] text-slate-500 font-sans no-print select-none">
         <div className="flex items-center space-x-4">
-          <span>Página {pages.length > 1 ? `1-${pages.length}` : '1'} de {stats.pages}</span>
+          <span className="font-medium text-slate-700">Página {currentVisiblePage} de {stats.pages}</span>
           <span>{stats.words} palabras</span>
           <span>{stats.chars} caracteres</span>
         </div>
@@ -707,6 +762,7 @@ export default function App() {
         </div>
       </footer>
 
+      {/* Modales */}
       <SymbolModal isOpen={isSymbolModalOpen} onClose={() => setIsSymbolModalOpen(false)} onInsertSymbol={handleInsertSymbol} />
       <LayoutModal isOpen={isLayoutModalOpen} onClose={() => setIsLayoutModalOpen(false)} layout={layout} onChangeLayout={setLayout} />
       <MathModal isOpen={isMathModalOpen} onClose={() => setIsMathModalOpen(false)} onInsert={handleInsertSnippet} />
