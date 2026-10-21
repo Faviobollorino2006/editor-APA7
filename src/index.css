@@ -27,18 +27,20 @@ body {
 .paper-sheet.size-letter {
   width: 8.5in;
   min-height: 11in;
+  height: 11in; /* Altura Carta exacta de 11 pulgadas */
 }
 
 .paper-sheet.size-a4 {
   width: 8.27in;
   min-height: 11.69in;
+  height: 11.69in;
 }
 
 .paper-sheet.size-legal {
   width: 8.5in;
   min-height: 14in;
+  height: 14in;
 }
-
 /* Capa de Encabezado Superior APA */
 .page-header-overlay {
   position: absolute;
@@ -60,10 +62,10 @@ body {
 .editor-body {
   width: 100%;
   height: 100%;
-  min-height: inherit;
+  min-height: 100%;
   outline: none;
-  font-family: inherit; /* Hereda dinámicamente la fuente seleccionada */
-  font-size: inherit;   /* Hereda dinámicamente el tamaño seleccionado */
+  font-family: inherit;
+  font-size: inherit;
   box-sizing: border-box;
   color: #000000;
 }
