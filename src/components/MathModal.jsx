@@ -19,21 +19,19 @@ export default function MathModal({ isOpen, onClose, onInsert }) {
   const [powerSup, setPowerSup] = useState('2');
   const [powerSub, setPowerSub] = useState('\\alpha/2');
 
-  // Envoltura formal APA 7 (centrada en bloque o en línea)
-  // Envoltura formal APA 7 100% editable
   const wrapFormulaHtml = (innerHtml, label = '') => {
     if (insertAsBlock) {
       return `
         <div class="math-formula-box no-indent" style="text-align: center; margin: 1.2em 0; font-family: 'Times New Roman', Times, serif; font-size: 13pt; line-height: 1.8; cursor: text;">
-          <span style="display: inline-block; padding: 6px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: text;">
-            ${innerHtml}
+          <span class="math-formula-inner" style="display: inline-block; padding: 6px 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: text;">
+            ${innerHtml}&nbsp;
           </span>
-          ${label ? `<span style="float: right; font-size: 11pt; color: #64748b; font-style: italic;">(${label})</span>` : ''}
+          ${label ? `<span class="math-formula-label" style="float: right; font-size: 11pt; color: #64748b; font-style: italic;">(${label})</span>` : ''}
         </div>
         <p class="indent-first-line"><br></p>
       `;
     }
-    return `<span class="math-formula-box" style="font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; padding: 1px 4px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: inline-flex; align-items: center; vertical-align: middle; cursor: text;">${innerHtml}</span>&nbsp;`;
+    return `<span class="math-formula-box math-formula-inner" style="font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; padding: 1px 6px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: inline-flex; align-items: center; vertical-align: middle; cursor: text;">${innerHtml}</span>&nbsp;`;
   };
 
   // Generador de Fracción Vertical Nítida
