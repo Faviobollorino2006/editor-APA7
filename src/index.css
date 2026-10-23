@@ -163,6 +163,13 @@ html, body {
   font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", serif;
 }
 
+/* Números con tipografía matemática Cambria Math / STIX Math */
+.math-number {
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", serif !important;
+  font-style: normal !important; /* Los números en fórmulas no van en cursiva */
+  letter-spacing: 0.02em;
+}
+
 /* Modos de Sangría Controlados */
 .editor-body p.indent-first-line { text-indent: 0.5in !important; padding-left: 0 !important; }
 .editor-body p.indent-hanging { padding-left: 0.5in !important; text-indent: -0.5in !important; }

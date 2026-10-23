@@ -50,13 +50,14 @@ function parseInlineRuns(domNode, initialStyles = {}, defaultFont = 'Times New R
   if (
       node.classList?.contains('math-symbol') ||
       node.classList?.contains('math-formula-box') ||
+      node.classList?.contains('math-number') || // <--- RECONOCIMIENTO DE NÚMEROS MATH
       style.includes('Cambria Math') ||
       style.includes('STIX Two Math') ||
       style.includes('Computer Modern')
     ) {
       newStyles.font = 'Cambria Math';
-      if (node.classList?.contains('math-operator')) {
-        newStyles.italics = false;
+      if (node.classList?.contains('math-operator') || node.classList?.contains('math-number')) {
+        newStyles.italics = false; // Los números se mantienen rectos
       } else if (style.includes('font-style: italic') || !node.classList?.contains('math-operator')) {
         newStyles.italics = true;
       }

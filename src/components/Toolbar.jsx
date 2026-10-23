@@ -20,6 +20,7 @@ export default function Toolbar({
   onExportPdf,
   onUploadModel,
   onInsertTab,
+  onFormatMathNumber,
   currentFont,
   onFontChange,
   currentFontSize,
@@ -183,6 +184,7 @@ export default function Toolbar({
             <option value="Arial">Arial (11pt)</option>
             <option value="Calibri">Calibri (11pt)</option>
             <option value="Georgia">Georgia (11pt)</option>
+            <option value="Cambria Math">Cambria Math (Matemática)</option>
           </select>
         </div>
 
@@ -278,6 +280,14 @@ export default function Toolbar({
           <button onClick={onOpenSymbolModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-serif font-bold">
             Ω Símbolos
           </button>
+          <button
+  onMouseDown={(e) => e.preventDefault()}
+  onClick={onFormatMathNumber}
+  className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs font-mono font-semibold flex items-center gap-1"
+  title="Aplica la tipografía Cambria Math a los números o estadísticas seleccionadas"
+>
+  <span>🔢</span> Num Math
+</button>
           <button onClick={onOpenReferenceModal} className="bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-slate-700 text-xs shadow-2xs">
             + Cita / Ref
           </button>

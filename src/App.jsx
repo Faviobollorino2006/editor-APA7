@@ -576,6 +576,40 @@ export default function App() {
     }
   };
 
+  // Convierte los números seleccionados a Cambria Math o prepara el cursor para números
+  const handleFormatMathNumber = () => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    const selectedText = range.toString();
+
+    if (selectedText.trim().length > 0) {
+      // Si el usuario seleccionó un número (ej: "0.045" o "1.96")
+      const span = document.createElement('span');
+      span.className = 'math-number';
+      span.textContent = selectedText;
+      range.deleteContents();
+      range.insertNode(span);
+
+      // Posiciona el cursor después del número
+      const newRange = document.createRange();
+      newRange.setStartAfter(span);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    } else {
+      // Si no seleccionó nada, aplica la fuente Cambria Math al punto del cursor
+      document.execCommand('fontName', false, 'Cambria Math');
+    }
+
+    updateStatsAndPersist();
+  };
+
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
@@ -601,6 +635,7 @@ export default function App() {
         onExportPdf={handleExportPdf}
         onUploadModel={handleUploadModel}
         onInsertTab={insertTabAtCursor}
+        onFormatMathNumber={handleFormatMathNumber}
         currentFont={docFont}
         onFontChange={handleFontChange}
         currentFontSize={docFontSize}
