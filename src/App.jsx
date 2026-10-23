@@ -20,7 +20,7 @@ const MODEL_STORAGE_KEY = 'apa7_teacher_model_data';
 const DEFAULT_PAGE_1 = `
   <div class="no-indent" style="line-height: 1.3; margin-bottom: 2em;">
     <div><strong>Bollorino Montoya, Favio</strong></div>
-    <div>Guayaquil, 19 de octubre de 2026</div>
+    <div>Guayaquil, 27 de octubre del 2026</div>
     <div>Deber 01</div>
     <div>Estadística / Matemáticas</div>
   </div>
@@ -29,7 +29,7 @@ const DEFAULT_PAGE_1 = `
 
   <h4>Pregunta 1: ¿Qué es la población y la muestra en estadística?</h4>
   <p class="indent-first-line">
-    En el análisis estadístico y la investigación cuantitativa, la delimitación precisa del universo de estudio y de la fracción observable constituye el punto de partida fundamental para cualquier inferencia válida. En palabras de Triola (2018), la "población es el conjunto completo de todos los elementos que se van a estudiar" (p. 5), mientras que la muestra representa un subconjunto de miembros seleccionados con la finalidad de obtener información representativa.
+    En el análisis cuantitativo y la inferencia matemática, la distinción rigurosa entre el universo de estudio y la fracción observable constituye el punto de partida fundamental para cualquier inferencia válida. En palabras de Triola (2018), la "población es el conjunto completo de todos los elementos que se van a estudiar" (p. 5), mientras que la muestra representa un subconjunto de miembros seleccionados con la finalidad de obtener información representativa.
   </p>
 
   <h4>Pregunta 2: ¿Para qué sirven el cálculo de la población y de la muestra?</h4>
@@ -46,7 +46,7 @@ export default function App() {
   const mainScrollRef = useRef(null);
   const lastRangeRef = useRef(null);
 
-  // Estados Reactivos de Fuente y Tamaño
+  // Tipografía y Tamaño Dinámicos
   const [docFont, setDocFont] = useState('Times New Roman');
   const [docFontSize, setDocFontSize] = useState('12pt');
 
@@ -59,11 +59,11 @@ export default function App() {
   const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
 
-  // Modelo del Docente
+  // Comparador de Modelo
   const [modelData, setModelData] = useState(null);
   const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
-  // Disposición APA 7
+  // Configuración de Disposición APA 7
   const [layout, setLayout] = useState({
     paperSize: 'letter',
     marginSize: '2.54',
@@ -84,6 +84,7 @@ export default function App() {
     hasReferences: false,
   });
 
+  // Persistencia de la posición del cursor en memoria
   const saveCursorPosition = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -91,6 +92,7 @@ export default function App() {
     }
   };
 
+  // Carga inicial y restauración
   useEffect(() => {
     const savedFont = localStorage.getItem(STORAGE_KEY_FONT);
     if (savedFont) setDocFont(savedFont);
@@ -127,7 +129,7 @@ export default function App() {
     }
   }, []);
 
-  // Detector de movimiento continuo de desplazamiento (Scroll Spy para hojas)
+  // Rastreo continuo de página activa por scroll
   const handleScrollTracking = () => {
     if (!mainScrollRef.current) return;
     const containerTop = mainScrollRef.current.getBoundingClientRect().top;
@@ -135,15 +137,14 @@ export default function App() {
     pageRefs.current.forEach((el, index) => {
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      // Si la hoja se encuentra en el tercio superior de la vista
-      if (rect.top - containerTop <= 250 && rect.bottom - containerTop >= 150) {
+      if (rect.top - containerTop <= 260 && rect.bottom - containerTop >= 140) {
         setCurrentVisiblePage(index + 1);
         activePageIndex.current = index;
       }
     });
   };
 
-  // Función de Desplazamiento Continuo y Suave hacia una hoja
+  // Desplazamiento fluido entre hojas
   const scrollToPage = (index) => {
     if (pageRefs.current[index]) {
       pageRefs.current[index].scrollIntoView({
@@ -155,6 +156,7 @@ export default function App() {
     }
   };
 
+  // Cálculo de estadísticas y guardado
   const updateStatsAndPersist = () => {
     let totalWords = 0;
     let totalChars = 0;
@@ -214,6 +216,215 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
+  // Asegura puntos de apoyo en el renglón base junto a fórmulas
+  const ensureMathSpacers = (container) => {
+    if (!container) return;
+    const mathElements = container.querySelectorAll(
+      '.math-fraction, .math-radical, .math-power-group, sup, sub, span[style*="flex-direction: column"], span[style*="flex-direction:column"]'
+    );
+
+    mathElements.forEach((el) => {
+      if (!el.nextSibling || (el.nextSibling.nodeType === Node.TEXT_NODE && el.nextSibling.textContent === '')) {
+        const spacer = document.createTextNode('\u00A0');
+        el.parentNode.insertBefore(spacer, el.nextSibling);
+      }
+    });
+  };
+
+  // Salir de una fracción al renglón normal inmediatamente a la derecha
+  const stepOutOfFraction = (fracElement) => {
+    let nextNode = fracElement.nextSibling;
+    if (!nextNode || (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '')) {
+      nextNode = document.createTextNode('\u00A0');
+      fracElement.parentNode.insertBefore(nextNode, fracElement.nextSibling);
+    }
+
+    const sel = window.getSelection();
+    const newRange = document.createRange();
+    newRange.setStart(nextNode, nextNode.nodeType === Node.TEXT_NODE ? 1 : 0);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    lastRangeRef.current = newRange.cloneRange();
+    updateStatsAndPersist();
+  };
+
+  // Detección de clics a la derecha de las fracciones
+  const handleEditorClick = (e, index) => {
+    activePageIndex.current = index;
+    const target = e.target;
+    const formulaBox = target.closest('.math-formula-box');
+
+    if (formulaBox) {
+      ensureMathSpacers(formulaBox);
+
+      const frac = formulaBox.querySelector('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
+      if (frac) {
+        const fracRect = frac.getBoundingClientRect();
+        if (e.clientX > fracRect.right) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          let nextNode = frac.nextSibling;
+          if (!nextNode || nextNode.nodeType !== Node.TEXT_NODE) {
+            nextNode = document.createTextNode('\u00A0');
+            frac.parentNode.insertBefore(nextNode, frac.nextSibling);
+          }
+
+          const sel = window.getSelection();
+          const newRange = document.createRange();
+          newRange.setStart(nextNode, nextNode.length);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          return;
+        }
+      }
+    }
+    saveCursorPosition();
+  };
+
+  // Manejo integral de teclado (Tab, escapes de fracciones, potencias y cajas)
+  const handleEditorKeyDown = (e, index) => {
+    activePageIndex.current = index;
+
+    // 1. Tabulador
+    if (e.key === 'Tab') {
+      const sel = window.getSelection();
+      const node = sel?.anchorNode;
+      const elem = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+      const frac = elem?.closest('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
+
+      if (frac) {
+        e.preventDefault();
+        e.stopPropagation();
+        stepOutOfFraction(frac);
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      insertTabAtCursor();
+      return;
+    }
+
+    // 2. Escape con flechas de fracciones y exponentes
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Escape') {
+      const sel = window.getSelection();
+      if (sel && sel.isCollapsed && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        const elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+
+        // Fracción: Denominador / Numerador
+        const frac = elem?.closest('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
+        if (frac) {
+          const isAtEnd = (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length);
+          const isDenominator = frac.children.length >= 2 && frac.children[1].contains(elem);
+          const isNumerator = frac.children.length >= 1 && frac.children[0].contains(elem);
+
+          if (isDenominator && (isAtEnd || e.key === 'Escape' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            e.stopPropagation();
+            stepOutOfFraction(frac);
+            return;
+          }
+
+          if (isNumerator && e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            const den = frac.children[1];
+            const newRange = document.createRange();
+            newRange.selectNodeContents(den);
+            newRange.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            lastRangeRef.current = newRange.cloneRange();
+            return;
+          }
+
+          if (isDenominator && e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            const num = frac.children[0];
+            const newRange = document.createRange();
+            newRange.selectNodeContents(num);
+            newRange.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            lastRangeRef.current = newRange.cloneRange();
+            return;
+          }
+        }
+
+        // Potencias y subíndices
+        const scriptElem = elem?.closest('sup, sub');
+        if (scriptElem && pageRefs.current[index]?.contains(scriptElem)) {
+          const isAtEnd = (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length);
+          if (isAtEnd || e.key === 'Escape' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            e.stopPropagation();
+
+            let targetNode = scriptElem.nextSibling;
+            if (!targetNode || (targetNode.nodeType === Node.TEXT_NODE && targetNode.textContent === '')) {
+              const spacer = document.createTextNode('\u00A0');
+              scriptElem.parentNode.insertBefore(spacer, scriptElem.nextSibling);
+              targetNode = spacer;
+            }
+
+            const newRange = document.createRange();
+            newRange.setStart(targetNode, targetNode.nodeType === Node.TEXT_NODE ? 1 : 0);
+            newRange.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            lastRangeRef.current = newRange.cloneRange();
+            updateStatsAndPersist();
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Salto con Enter fuera de cajas de fórmula
+    if (e.key === 'Enter') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        let node = range.startContainer;
+        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        const formulaBox = elem?.closest('.math-formula-box');
+
+        if (formulaBox) {
+          e.preventDefault();
+          let nextP = formulaBox.nextElementSibling;
+          if (!nextP || nextP.tagName !== 'P') {
+            nextP = document.createElement('p');
+            nextP.className = 'indent-first-line';
+            nextP.innerHTML = '<br>';
+            formulaBox.parentNode.insertBefore(nextP, formulaBox.nextSibling);
+          }
+
+          const newRange = document.createRange();
+          newRange.setStart(nextP, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          updateStatsAndPersist();
+          return;
+        }
+      }
+
+      const el = pageRefs.current[index];
+      if (el && !el.querySelector('p')) {
+        e.preventDefault();
+        document.execCommand('insertParagraph', false);
+      }
+    }
+  };
+
+  // Cambio de Fuente Dinámico
   const handleFontChange = (newFont) => {
     setDocFont(newFont);
     let autoSize = docFontSize;
@@ -259,6 +470,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
+  // Cambio de Tamaño Dinámico
   const handleFontSizeChange = (newSize) => {
     setDocFontSize(newSize);
     const activeEl = getActivePageEl();
@@ -302,6 +514,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
+  // Inserción de Tabulación
   const insertTabAtCursor = () => {
     const activeEl = getActivePageEl();
     if (!activeEl) return;
@@ -340,102 +553,38 @@ export default function App() {
     }
   };
 
-  const handleEditorKeyDown = (e, index) => {
-    activePageIndex.current = index;
+  // Aplicar Cambria Math a Números
+  const handleFormatMathNumber = () => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
 
-    // 1. Tabulador
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      e.stopPropagation();
-      insertTabAtCursor();
-      return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    const selectedText = range.toString();
+
+    if (selectedText.trim().length > 0) {
+      const span = document.createElement('span');
+      span.className = 'math-number';
+      span.textContent = selectedText;
+      range.deleteContents();
+      range.insertNode(span);
+
+      const newRange = document.createRange();
+      newRange.setStartAfter(span);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      lastRangeRef.current = newRange.cloneRange();
+    } else {
+      document.execCommand('fontName', false, 'Cambria Math');
     }
-
-    // 2. Escape Inteligente de Potencias (sup) y Subíndices (sub)
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Escape') {
-      const sel = window.getSelection();
-      if (sel && sel.isCollapsed && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        let node = range.startContainer;
-        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-
-        const scriptElem = elem?.closest('sup, sub');
-        if (scriptElem && pageRefs.current[index]?.contains(scriptElem)) {
-          // Si el cursor está al final del número elevado o se presiona Escape / Flecha Abajo
-          const isAtEnd =
-            (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length) ||
-            (node === scriptElem && range.startOffset === scriptElem.childNodes.length);
-
-          if (isAtEnd || e.key === 'Escape' || e.key === 'ArrowDown') {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Buscar o crear un punto de escritura en el renglón base (fuera del sup)
-            let targetNode = scriptElem.nextSibling;
-            if (!targetNode || (targetNode.nodeType === Node.TEXT_NODE && targetNode.textContent === '')) {
-              const spacer = document.createTextNode('\u00A0'); // Espacio en línea base
-              scriptElem.parentNode.insertBefore(spacer, scriptElem.nextSibling);
-              targetNode = spacer;
-            }
-
-            const newRange = document.createRange();
-            if (targetNode.nodeType === Node.TEXT_NODE) {
-              newRange.setStart(targetNode, 1);
-              newRange.setEnd(targetNode, 1);
-            } else {
-              newRange.setStartBefore(targetNode);
-              newRange.collapse(true);
-            }
-
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            lastRangeRef.current = newRange.cloneRange();
-            updateStatsAndPersist();
-            return;
-          }
-        }
-      }
-    }
-
-    // 3. Salida de Caja de Fórmula con Flecha Abajo o Enter
-    if (e.key === 'Enter') {
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        let node = range.startContainer;
-        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-        const formulaBox = elem?.closest('.math-formula-box');
-
-        if (formulaBox) {
-          // Si pulsa Enter dentro de la caja de fórmula, salir hacia el párrafo inferior
-          e.preventDefault();
-          let nextP = formulaBox.nextElementSibling;
-          if (!nextP || nextP.tagName !== 'P') {
-            nextP = document.createElement('p');
-            nextP.className = 'indent-first-line';
-            nextP.innerHTML = '<br>';
-            formulaBox.parentNode.insertBefore(nextP, formulaBox.nextSibling);
-          }
-
-          const newRange = document.createRange();
-          newRange.setStart(nextP, 0);
-          newRange.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-          lastRangeRef.current = newRange.cloneRange();
-          updateStatsAndPersist();
-          return;
-        }
-      }
-
-      const el = pageRefs.current[index];
-      if (el && !el.querySelector('p')) {
-        e.preventDefault();
-        document.execCommand('insertParagraph', false);
-      }
-    }
+    updateStatsAndPersist();
   };
-  // Crear nueva hoja y deslizar la vista hacia ella de forma continua
+
+  // Agregar Nueva Hoja
   const handleInsertNewPage = () => {
     const newId = Date.now();
     setPages((prev) => [...prev, { id: newId }]);
@@ -447,12 +596,13 @@ export default function App() {
         pageRefs.current[nextIdx].style.fontFamily = docFont;
         pageRefs.current[nextIdx].style.fontSize = docFontSize;
         pageRefs.current[nextIdx].focus();
-        scrollToPage(nextIdx); // Deslizamiento continuo hacia la nueva hoja
+        scrollToPage(nextIdx);
       }
       updateStatsAndPersist();
     }, 60);
   };
 
+  // Eliminar Hoja
   const handleDeletePage = (indexToDelete) => {
     if (pages.length <= 1) {
       alert("El documento debe tener al menos una hoja.");
@@ -467,6 +617,7 @@ export default function App() {
     }
   };
 
+  // Reiniciar a Hoja en Blanco
   const handleNewBlankPage = () => {
     if (window.confirm("¿Deseas vaciar todo el trabajo y empezar con una sola hoja en blanco?")) {
       setPages([{ id: 1 }]);
@@ -484,6 +635,7 @@ export default function App() {
     }
   };
 
+  // Botón Maestro APA 7
   const handleApplyApaDefaultStyle = () => {
     const el = getActivePageEl();
     if (!el) return;
@@ -506,6 +658,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
+  // Sangría de Párrafo
   const handleApplyIndentStyle = (indentType) => {
     const sel = window.getSelection();
     if (sel && sel.anchorNode) {
@@ -523,7 +676,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
-  // Inserción de símbolos con fuente matemática Cambria Math / STIX Math
+  // Inserción de Símbolos Matemáticos
   const handleInsertSymbol = (symbolData) => {
     const activeEl = getActivePageEl();
     if (!activeEl) return;
@@ -531,13 +684,13 @@ export default function App() {
 
     const char = typeof symbolData === 'string' ? symbolData : symbolData.char;
     const isOp = typeof symbolData === 'object' && symbolData.isOperator;
-
     const fontStyle = isOp ? 'normal' : 'italic';
-    const symbolHtml = `<span class="math-symbol ${isOp ? 'math-operator' : ''}" style="font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Computer Modern', serif; font-style: ${fontStyle};">${char}</span>&nbsp;`;
 
+    const symbolHtml = `<span class="math-symbol ${isOp ? 'math-operator' : ''}" style="font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Computer Modern', serif; font-style: ${fontStyle};">${char}</span>&nbsp;`;
     handleInsertSnippet(symbolHtml);
   };
 
+  // Inserción de Snippet / HTML
   const handleInsertSnippet = (snippetHtml) => {
     const el = getActivePageEl();
     if (!el) return;
@@ -547,6 +700,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
+  // Reiniciar a Plantilla Predeterminada
   const handleResetDocument = () => {
     if (window.confirm("¿Seguro que deseas reiniciar el documento a la plantilla inicial?")) {
       setPages([{ id: 1 }]);
@@ -564,11 +718,12 @@ export default function App() {
     }
   };
 
+  // Encabezado Institucional
   const handleInsertHeader = () => {
     const headerHtml = `
       <div class="no-indent" style="line-height: 1.3; margin-bottom: 2em;">
         <div><strong>Bollorino Montoya, Favio</strong></div>
-        <div>Guayaquil, 19 de octubre de 2026</div>
+        <div>Guayaquil, 27 de octubre del 2026</div>
         <div>Deber 01</div>
         <div>Estadística / Matemáticas</div>
       </div>
@@ -579,6 +734,7 @@ export default function App() {
     handleInsertSnippet(headerHtml);
   };
 
+  // Exportaciones Oficiales
   const handleExportWord = async () => {
     await exportToDocx(pageRefs.current, 'Investigacion_Estadistica_APA7.docx', {
       font: docFont,
@@ -596,6 +752,7 @@ export default function App() {
     }
   };
 
+  // Carga de Archivo Modelo
   const handleUploadModel = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -656,45 +813,11 @@ export default function App() {
     }
   };
 
-  // Convierte los números seleccionados a Cambria Math o prepara el cursor para números
-  const handleFormatMathNumber = () => {
-    const activeEl = getActivePageEl();
-    if (!activeEl) return;
-    activeEl.focus();
-
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-
-    const range = sel.getRangeAt(0);
-    const selectedText = range.toString();
-
-    if (selectedText.trim().length > 0) {
-      // Si el usuario seleccionó un número (ej: "0.045" o "1.96")
-      const span = document.createElement('span');
-      span.className = 'math-number';
-      span.textContent = selectedText;
-      range.deleteContents();
-      range.insertNode(span);
-
-      // Posiciona el cursor después del número
-      const newRange = document.createRange();
-      newRange.setStartAfter(span);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    } else {
-      // Si no seleccionó nada, aplica la fuente Cambria Math al punto del cursor
-      document.execCommand('fontName', false, 'Cambria Math');
-    }
-
-    updateStatsAndPersist();
-  };
-
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#edf2f7] overflow-hidden select-none">
-      {/* 1. BARRA DE HERRAMIENTAS: Inamovible en la parte superior */}
+      {/* BARRA SUPERIOR INAMOVIBLE */}
       <Toolbar
         onInsertHeader={handleInsertHeader}
         onOpenTableModal={() => setIsTableModalOpen(true)}
@@ -723,7 +846,7 @@ export default function App() {
         saveStatus={saveStatus}
       />
 
-      {/* 2. ÁREA DE TRABAJO CON DESPLAZAMIENTO SUAVE Y SEGUIMIENTO CONTINUO */}
+      {/* ÁREA DE TRABAJO CON SEGUIMIENTO CONTINUO */}
       <div className="flex-1 flex overflow-hidden relative">
         <main
           ref={mainScrollRef}
@@ -732,7 +855,7 @@ export default function App() {
         >
           {pages.map((page, index) => (
             <div key={page.id} className="relative mb-12 flex flex-col items-center">
-              {/* Cabecera sutil de página */}
+              {/* Indicador de Hoja */}
               <div className="w-full flex items-center justify-between px-2 pb-1.5 text-xs text-slate-500 no-print">
                 <span className="font-sans font-medium text-[11px] text-slate-400">
                   Página {index + 1} de {pages.length}
@@ -777,7 +900,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Lienzo de Escritura */}
+                {/* Lienzo de Escritura con Captura de Eventos */}
                 <div
                   ref={(el) => (pageRefs.current[index] = el)}
                   contentEditable
@@ -788,6 +911,7 @@ export default function App() {
                     setCurrentVisiblePage(index + 1);
                     saveCursorPosition();
                   }}
+                  onClick={(e) => handleEditorClick(e, index)}
                   onKeyUp={saveCursorPosition}
                   onMouseUp={saveCursorPosition}
                   onKeyDown={(e) => handleEditorKeyDown(e, index)}
@@ -803,7 +927,7 @@ export default function App() {
             </div>
           ))}
 
-          {/* Botón sobrio para agregar página */}
+          {/* Botón para agregar página */}
           <button
             onClick={handleInsertNewPage}
             className="no-print my-6 px-6 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-medium shadow-2xs flex items-center gap-2 transition-all hover:shadow-xs"
@@ -812,10 +936,9 @@ export default function App() {
           </button>
         </main>
 
-        {/* 3. DOCK FLOTANTE DE MOVIMIENTO CONTINUO (Acompaña la vista en todo momento) */}
+        {/* DOCK FLOTANTE LATERAL */}
         {pages.length > 1 && (
           <aside className="no-print absolute right-6 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm border border-slate-200/90 shadow-lg rounded-full py-3 px-2 flex flex-col items-center gap-2 z-20">
-            {/* Subir a hoja anterior */}
             <button
               onClick={() => scrollToPage(Math.max(0, currentVisiblePage - 2))}
               disabled={currentVisiblePage <= 1}
@@ -825,13 +948,11 @@ export default function App() {
               ▲
             </button>
 
-            {/* Indicador de página actual */}
             <div className="text-[11px] font-sans font-bold text-slate-700 py-1 px-1.5 rounded text-center leading-none">
               <span className="text-blue-700 text-sm block">{currentVisiblePage}</span>
               <span className="text-[9px] text-slate-400">de {pages.length}</span>
             </div>
 
-            {/* Bajar a hoja siguiente */}
             <button
               onClick={() => scrollToPage(Math.min(pages.length - 1, currentVisiblePage))}
               disabled={currentVisiblePage >= pages.length}
@@ -843,11 +964,10 @@ export default function App() {
 
             <div className="w-4 h-px bg-slate-200 my-0.5"></div>
 
-            {/* Botón rápido para añadir hoja */}
             <button
               onClick={handleInsertNewPage}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors text-sm font-bold"
-              title="Añadir nueva hoja y desplazarse a ella"
+              title="Añadir nueva hoja"
             >
               +
             </button>
@@ -869,7 +989,7 @@ export default function App() {
         )}
       </div>
 
-      {/* 4. BARRA DE ESTADO INFERIOR TIPO WORD */}
+      {/* BARRA DE ESTADO INFERIOR TIPO WORD */}
       <footer className="h-6 bg-slate-100 border-t border-slate-200 px-6 flex items-center justify-between text-[11px] text-slate-500 font-sans no-print select-none">
         <div className="flex items-center space-x-4">
           <span className="font-medium text-slate-700">Página {currentVisiblePage} de {stats.pages}</span>
@@ -883,7 +1003,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modales */}
+      {/* Modales del Sistema */}
       <SymbolModal isOpen={isSymbolModalOpen} onClose={() => setIsSymbolModalOpen(false)} onInsertSymbol={handleInsertSymbol} />
       <LayoutModal isOpen={isLayoutModalOpen} onClose={() => setIsLayoutModalOpen(false)} layout={layout} onChangeLayout={setLayout} />
       <MathModal isOpen={isMathModalOpen} onClose={() => setIsMathModalOpen(false)} onInsert={handleInsertSnippet} />
