@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
+
 @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities
 
 /* Lienzo de escritorio tipo Word / Google Docs */
 /* Reemplaza el bloque de body en src/index.css por este: */
@@ -146,6 +148,22 @@ html, body {
 
 .math-formula-box:hover {
   background-color: #f8fafc;
+}
+
+.math-symbol {
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", "Times New Roman", serif !important;
+  font-style: italic;
+  display: inline-block;
+  padding: 0 1px;
+  line-height: 1;
+}
+
+.math-symbol.math-operator {
+  font-style: normal !important;
+}
+
+.math-font-preview {
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", serif;
 }
 
 /* Escalas de tamaño */
