@@ -443,13 +443,19 @@ export default function App() {
     updateStatsAndPersist();
   };
 
-  const handleInsertSymbol = (char) => {
-    const el = getActivePageEl();
-    if (!el) return;
-    el.focus();
-    document.execCommand('insertText', false, char);
-    saveCursorPosition();
-    updateStatsAndPersist();
+  // Inserción de símbolos con fuente matemática Cambria Math / STIX Math
+  const handleInsertSymbol = (symbolData) => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const char = typeof symbolData === 'string' ? symbolData : symbolData.char;
+    const isOp = typeof symbolData === 'object' && symbolData.isOperator;
+
+    const fontStyle = isOp ? 'normal' : 'italic';
+    const symbolHtml = `<span class="math-symbol ${isOp ? 'math-operator' : ''}" style="font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Computer Modern', serif; font-style: ${fontStyle};">${char}</span>&nbsp;`;
+
+    handleInsertSnippet(symbolHtml);
   };
 
   const handleInsertSnippet = (snippetHtml) => {

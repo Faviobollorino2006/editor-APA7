@@ -46,6 +46,21 @@ function parseInlineRuns(domNode, initialStyles = {}, defaultFont = 'Times New R
     if (tag === 'b' || tag === 'strong' || style.includes('font-weight: bold') || style.includes('font-weight:bold')) {
       newStyles.bold = true;
     }
+
+  if (
+      node.classList?.contains('math-symbol') ||
+      node.classList?.contains('math-formula-box') ||
+      style.includes('Cambria Math') ||
+      style.includes('STIX Two Math') ||
+      style.includes('Computer Modern')
+    ) {
+      newStyles.font = 'Cambria Math';
+      if (node.classList?.contains('math-operator')) {
+        newStyles.italics = false;
+      } else if (style.includes('font-style: italic') || !node.classList?.contains('math-operator')) {
+        newStyles.italics = true;
+      }
+    }
     if (tag === 'i' || tag === 'em' || style.includes('font-style: italic') || style.includes('font-style:italic')) {
       newStyles.italics = true;
     }
