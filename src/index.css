@@ -1,14 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math&display=swap');
-
 @tailwind base;
 @tailwind components;
-@tailwind utilities
+@tailwind utilities;
 
-/* Lienzo de escritorio tipo Word / Google Docs */
-/* Reemplaza el bloque de body en src/index.css por este: */
+/* Configuración del viewport y escritorio */
 html, body {
   height: 100%;
-  overflow: hidden; /* Evita que la ventana completa haga scroll y oculte la barra */
+  overflow: hidden;
   background-color: #edf2f7;
   color: #1e293b;
   margin: 0;
@@ -17,7 +14,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Hoja Física Simulada con sombra de papel real */
+/* Hoja Física Carta (Proporciones estrictas APA 7: 8.5 x 11 pulgadas) */
 .paper-sheet {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -32,7 +29,7 @@ html, body {
 .paper-sheet.size-letter {
   width: 8.5in;
   min-height: 11in;
-  height: 11in; /* Altura Carta exacta de 11 pulgadas */
+  height: 11in;
 }
 
 .paper-sheet.size-a4 {
@@ -46,7 +43,8 @@ html, body {
   min-height: 14in;
   height: 14in;
 }
-/* Capa de Encabezado Superior APA */
+
+/* Encabezado Superior APA */
 .page-header-overlay {
   position: absolute;
   top: 0;
@@ -54,16 +52,14 @@ html, body {
   right: 0;
   pointer-events: none;
   user-select: none;
-  font-family: "Times New Roman", Times, serif;
   font-size: 12pt;
   line-height: 1;
-  color: #334155;
+  color: #64748b;
   z-index: 10;
   box-sizing: border-box;
 }
 
-/* Lienzo de Escritura */
-/* Reemplaza el bloque de .editor-body por este: */
+/* Lienzo de Escritura con Herencia Reactiva */
 .editor-body {
   width: 100%;
   height: 100%;
@@ -139,7 +135,7 @@ html, body {
   margin-bottom: 0.8em;
 }
 
-/* Fórmulas matemáticas en hoja */
+/* Cajas y Fórmulas Matemáticas */
 .math-formula-box {
   user-select: all;
   padding: 4px 8px;
@@ -150,6 +146,7 @@ html, body {
   background-color: #f8fafc;
 }
 
+/* Tipografía Matemática Cambria Math / STIX Math */
 .math-symbol {
   font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", "Times New Roman", serif !important;
   font-style: italic;
@@ -166,20 +163,13 @@ html, body {
   font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Computer Modern", serif;
 }
 
-/* Escalas de tamaño */
-.editor-body font[size="1"] { font-size: 10pt; }
-.editor-body font[size="2"] { font-size: 11pt; }
-.editor-body font[size="3"] { font-size: 12pt; }
-.editor-body font[size="4"] { font-size: 14pt; }
-.editor-body font[size="5"] { font-size: 18pt; }
-
-/* Sangrías controladas */
+/* Modos de Sangría Controlados */
 .editor-body p.indent-first-line { text-indent: 0.5in !important; padding-left: 0 !important; }
 .editor-body p.indent-hanging { padding-left: 0.5in !important; text-indent: -0.5in !important; }
 .editor-body p.indent-none { text-indent: 0 !important; padding-left: 0 !important; }
 .editor-body p.indent-block { text-indent: 0 !important; padding-left: 0.5in !important; margin: 0.5em 0; }
 
-/* Impresión limpia */
+/* Exportación e Impresión */
 @media print {
   body { background: #ffffff !important; }
   header, footer, aside, .no-print { display: none !important; }
