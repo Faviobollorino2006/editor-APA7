@@ -342,11 +342,92 @@ export default function App() {
 
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
+
+    // 1. Tabulador
     if (e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();
       insertTabAtCursor();
-    } else if (e.key === 'Enter') {
+      return;
+    }
+
+    // 2. Escape Inteligente de Potencias (sup) y Subíndices (sub)
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Escape') {
+      const sel = window.getSelection();
+      if (sel && sel.isCollapsed && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        let node = range.startContainer;
+        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+
+        const scriptElem = elem?.closest('sup, sub');
+        if (scriptElem && pageRefs.current[index]?.contains(scriptElem)) {
+          // Si el cursor está al final del número elevado o se presiona Escape / Flecha Abajo
+          const isAtEnd =
+            (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length) ||
+            (node === scriptElem && range.startOffset === scriptElem.childNodes.length);
+
+          if (isAtEnd || e.key === 'Escape' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Buscar o crear un punto de escritura en el renglón base (fuera del sup)
+            let targetNode = scriptElem.nextSibling;
+            if (!targetNode || (targetNode.nodeType === Node.TEXT_NODE && targetNode.textContent === '')) {
+              const spacer = document.createTextNode('\u00A0'); // Espacio en línea base
+              scriptElem.parentNode.insertBefore(spacer, scriptElem.nextSibling);
+              targetNode = spacer;
+            }
+
+            const newRange = document.createRange();
+            if (targetNode.nodeType === Node.TEXT_NODE) {
+              newRange.setStart(targetNode, 1);
+              newRange.setEnd(targetNode, 1);
+            } else {
+              newRange.setStartBefore(targetNode);
+              newRange.collapse(true);
+            }
+
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            lastRangeRef.current = newRange.cloneRange();
+            updateStatsAndPersist();
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Salida de Caja de Fórmula con Flecha Abajo o Enter
+    if (e.key === 'Enter') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        let node = range.startContainer;
+        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        const formulaBox = elem?.closest('.math-formula-box');
+
+        if (formulaBox) {
+          // Si pulsa Enter dentro de la caja de fórmula, salir hacia el párrafo inferior
+          e.preventDefault();
+          let nextP = formulaBox.nextElementSibling;
+          if (!nextP || nextP.tagName !== 'P') {
+            nextP = document.createElement('p');
+            nextP.className = 'indent-first-line';
+            nextP.innerHTML = '<br>';
+            formulaBox.parentNode.insertBefore(nextP, formulaBox.nextSibling);
+          }
+
+          const newRange = document.createRange();
+          newRange.setStart(nextP, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          updateStatsAndPersist();
+          return;
+        }
+      }
+
       const el = pageRefs.current[index];
       if (el && !el.querySelector('p')) {
         e.preventDefault();
@@ -354,7 +435,6 @@ export default function App() {
       }
     }
   };
-
   // Crear nueva hoja y deslizar la vista hacia ella de forma continua
   const handleInsertNewPage = () => {
     const newId = Date.now();

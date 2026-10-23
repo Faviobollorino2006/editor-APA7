@@ -137,13 +137,19 @@ html, body {
 
 /* Cajas y Fórmulas Matemáticas */
 .math-formula-box {
-  user-select: all;
+  user-select: text !important;
+  cursor: text !important;
   padding: 4px 8px;
   border-radius: 4px;
 }
 
 .math-formula-box:hover {
   background-color: #f8fafc;
+}
+
+.math-power-group {
+  display: inline-flex;
+  align-items: baseline;
 }
 
 /* Tipografía Matemática Cambria Math / STIX Math */
