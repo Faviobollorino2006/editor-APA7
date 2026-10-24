@@ -34,13 +34,18 @@ export default function MathModal({ isOpen, onClose, onInsert }) {
     return `<span class="math-formula-box math-formula-inner" style="font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; padding: 1px 6px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: inline-flex; align-items: center; vertical-align: middle; cursor: text;">${innerHtml}</span>&nbsp;`;
   };
 
-  // Generador de Fracción Vertical Nítida
   const generateFractionHtml = (num, den) => {
     return `
-      <span class="math-fraction" style="display: inline-block; vertical-align: middle; text-align: center; margin: 0 4px; font-size: 0.95em;">
-        <span class="math-numerator" style="display: block; border-bottom: 1.5px solid #000000; padding: 0 4px 1px 4px; line-height: 1.1;">${num}</span>
-        <span class="math-denominator" style="display: block; padding: 1px 4px 0 4px; line-height: 1.1;">${den}</span>
-      </span>&nbsp;
+      <table class="math-fraction-table" style="display: inline-table; vertical-align: middle; border-collapse: collapse; text-align: center; margin: 0 4px; border: none; font-size: 0.95em; line-height: 1.1;">
+        <tbody>
+          <tr>
+            <td class="math-numerator" style="border-bottom: 1.5px solid #000000; padding: 0 4px 1px 4px; text-align: center; border-top: none; border-left: none; border-right: none;">${num}</td>
+          </tr>
+          <tr>
+            <td class="math-denominator" style="border: none; padding: 1px 4px 0 4px; text-align: center; border-bottom: none; border-left: none; border-right: none;">${den}</td>
+          </tr>
+        </tbody>
+      </table>&nbsp;
     `;
   };
 

@@ -91,18 +91,47 @@ export default function App() {
     }
   };
 
-  // Reabsorbe cualquier texto o símbolo huérfano dentro de la caja de fórmula gris
+  // Reabsorbe textos huérfanos y migra fracciones flex a tablas nativas estables
   const healFormulaBoxes = (container) => {
     if (!container) return;
-    const formulaBoxes = container.querySelectorAll('.math-formula-box');
 
+    // 1. Migración automática de fracciones viejas en pantalla a tablas estables
+    const flexFractions = container.querySelectorAll(
+      'span.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]'
+    );
+    flexFractions.forEach((frac) => {
+      const children = Array.from(frac.children);
+      if (children.length >= 2) {
+        const numHtml = children[0].innerHTML;
+        const denHtml = children[1].innerHTML;
+        const table = document.createElement('table');
+        table.className = 'math-fraction-table';
+        table.setAttribute(
+          'style',
+          'display: inline-table !important; vertical-align: middle !important; border-collapse: collapse !important; text-align: center !important; margin: 0 4px !important; border: none !important; font-size: 0.95em !important; line-height: 1.1 !important;'
+        );
+        table.innerHTML = `
+          <tbody>
+            <tr>
+              <td class="math-numerator" style="border-bottom: 1.5px solid #000000 !important; border-top: none !important; border-left: none !important; border-right: none !important; padding: 0 4px 1px 4px !important; text-align: center !important;">${numHtml}</td>
+            </tr>
+            <tr>
+              <td class="math-denominator" style="border: none !important; padding: 1px 4px 0 4px !important; text-align: center !important;">${denHtml}</td>
+            </tr>
+          </tbody>
+        `;
+        frac.parentNode.replaceChild(table, frac);
+      }
+    });
+
+    // 2. Unificación de símbolos dentro de la caja gris
+    const formulaBoxes = container.querySelectorAll('.math-formula-box');
     formulaBoxes.forEach((box) => {
       const pill = box.querySelector('.math-formula-inner, span[style*="background-color"], span[style*="background:#f8fafc"]');
       if (pill) {
         const strayNodes = Array.from(box.childNodes).filter(
           (node) => node !== pill && !node.classList?.contains('math-formula-label')
         );
-
         if (strayNodes.length > 0) {
           strayNodes.forEach((node) => {
             pill.appendChild(node);

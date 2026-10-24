@@ -175,8 +175,10 @@ export async function exportToDocx(
       }
 
       // 5. Tablas APA
-      const tableEl = el.querySelector('table');
-      if (tableEl || el.tagName === 'TABLE') {
+      const tableEl = el.querySelector('table:not(.math-fraction-table)');
+const isMathTable = el.classList?.contains('math-fraction-table');
+
+if (!isMathTable && (tableEl || (el.tagName === 'TABLE' && !el.classList.contains('math-fraction-table')))) {
         const targetTable = tableEl || el;
         const htmlRows = Array.from(targetTable.querySelectorAll('tr'));
 
