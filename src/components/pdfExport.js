@@ -12,7 +12,7 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
   window.scrollTo(0, 0);
 
   try {
-    // Esperar a que las fuentes del navegador estén totalmente calculadas
+    // 1. Espera activa para asegurar que las fuentes tipográficas y matemáticas estén cargadas
     if (document.fonts) {
       await document.fonts.ready;
     }
@@ -20,7 +20,8 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'in',
-      format: 'letter', // 8.5 x 11 pulgadas oficiales
+      format: 'letter',
+      compress: true,
     });
 
     for (let i = 0; i < sheetElements.length; i++) {
@@ -30,9 +31,9 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
         pdf.addPage('letter', 'portrait');
       }
 
-      // Captura nítida de la hoja física
+      // 2. Captura a 300 DPI (scale: 3) para máxima nitidez en visores y Adobe Acrobat
       const canvas = await html2canvas(sheet, {
-        scale: 2, // Calidad HD
+        scale: 3,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
@@ -40,13 +41,12 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
         scrollY: 0,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      // 3. Formato PNG sin pérdida para eliminar el pixelado y el ruido de compresión JPEG
+      const imgData = canvas.toDataURL('image/png');
 
-      // Dimensiones de la página Carta en pulgadas
       const pdfWidth = 8.5;
       const pdfHeight = 11;
 
-      // Cálculo de relación de aspecto proporcional
       const canvasRatio = canvas.width / canvas.height;
       const pageRatio = pdfWidth / pdfHeight;
 
@@ -55,8 +55,6 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
       let posX = 0;
       let posY = 0;
 
-      // Si existe una discrepancia en la relación de aspecto, ajustamos proporcionalmente
-      // evitando cualquier compresión vertical o estiramiento horizontal
       if (Math.abs(canvasRatio - pageRatio) > 0.005) {
         if (canvasRatio > pageRatio) {
           renderHeight = pdfWidth / canvasRatio;
@@ -67,7 +65,7 @@ export async function exportToPdf(editorElements, filename = 'Investigacion_Esta
         }
       }
 
-      pdf.addImage(imgData, 'JPEG', posX, posY, renderWidth, renderHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'PNG', posX, posY, renderWidth, renderHeight, undefined, 'FAST');
     }
 
     pdf.save(filename);

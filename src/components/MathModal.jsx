@@ -37,10 +37,10 @@ export default function MathModal({ isOpen, onClose, onInsert }) {
   // Generador de Fracción Vertical Nítida
   const generateFractionHtml = (num, den) => {
     return `
-      <span style="display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 4px; font-size: 0.95em;">
-        <span style="border-bottom: 1.5px solid #000000; padding: 0 4px 1px 4px; line-height: 1.1;">${num}</span>
-        <span style="padding: 1px 4px 0 4px; line-height: 1.1;">${den}</span>
-      </span>
+      <span class="math-fraction" style="display: inline-block; vertical-align: middle; text-align: center; margin: 0 4px; font-size: 0.95em;">
+        <span class="math-numerator" style="display: block; border-bottom: 1.5px solid #000000; padding: 0 4px 1px 4px; line-height: 1.1;">${num}</span>
+        <span class="math-denominator" style="display: block; padding: 1px 4px 0 4px; line-height: 1.1;">${den}</span>
+      </span>&nbsp;
     `;
   };
 
