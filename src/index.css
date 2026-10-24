@@ -224,3 +224,29 @@ span[style*="flex-direction:column"] > span:last-child {
   line-height: 1.1 !important;
   text-align: center !important;
 }
+
+.math-equation-block {
+  text-align: center;
+  margin: 1.2em 0;
+  cursor: pointer;
+  line-height: normal !important; /* Evita que el interlineado 2.0 distorsione la altura */
+}
+
+.math-equation-block mjx-container,
+.math-equation-block svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  outline: none;
+}
+
+.math-equation-inline {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  line-height: normal !important;
+}
+
+.math-equation-inline mjx-container,
+.math-equation-inline svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
