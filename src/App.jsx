@@ -46,9 +46,11 @@ export default function App() {
   const mainScrollRef = useRef(null);
   const lastRangeRef = useRef(null);
 
-  // Estados de Formato y Selección
+  // Estados de Objeto Ecuación y Selección
   const [selectedEquation, setSelectedEquation] = useState(null);
   const [editingEquationLatex, setEditingEquationLatex] = useState(null);
+
+  // Tipografía, Tamaño y Sangría
   const [docFont, setDocFont] = useState('Times New Roman');
   const [docFontSize, setDocFontSize] = useState('12pt');
   const [docIndent, setDocIndent] = useState('none');
@@ -87,14 +89,12 @@ export default function App() {
     hasReferences: false,
   });
 
-  // Limpia fórmulas duplicadas y texto huérfano en documentos existentes
+  // Limpia fórmulas duplicadas y capas MathML no deseadas
   const healFormulaBoxes = (container) => {
     if (!container) return;
 
-    // 1. Elimina etiquetas de accesibilidad MathML que provocaban la segunda línea duplicada
     container.querySelectorAll('mjx-assistive-mml, math, .mjx-assistive-mml').forEach((el) => el.remove());
 
-    // 2. Si quedaron múltiples SVGs dentro de una caja, conserva solo el primero
     container.querySelectorAll('.math-equation-box').forEach((box) => {
       const svgs = box.querySelectorAll('svg');
       if (svgs.length > 1) {
@@ -102,7 +102,6 @@ export default function App() {
           svgs[i].remove();
         }
       }
-      // Elimina nodos de texto sueltos que duplican la fórmula
       Array.from(box.childNodes).forEach((node) => {
         if (node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0) {
           node.remove();
@@ -274,6 +273,24 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
+  // APLICACIÓN DE COLOR DE FUENTE CON PRESERVACIÓN DE FOCO
+  const handleApplyColor = (color) => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(lastRangeRef.current);
+    }
+
+    document.execCommand('foreColor', false, color);
+    saveCursorPosition();
+    updateStatsAndPersist();
+  };
+
+  // APLICACIÓN ROBUSTA DE SANGRÍA
   const handleApplyIndentStyle = (indentType) => {
     setDocIndent(indentType);
     const activeEl = getActivePageEl();
@@ -337,6 +354,7 @@ export default function App() {
     updateStatsAndPersist();
   };
 
+  // CONTROLADOR DE TECLADO: HERENCIA DE SANGRÍAS Y BORRADO DE OBJETOS
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
 
@@ -523,7 +541,6 @@ export default function App() {
     const target = e.target;
     const eqBox = target.closest('.math-equation-box');
 
-    // Solo selecciona la fórmula si se hace clic explícitamente sobre el recuadro interactivo
     if (eqBox) {
       const eqBlock = eqBox.closest('.math-equation-block');
       if (eqBlock) {
@@ -538,9 +555,8 @@ export default function App() {
     saveCursorPosition();
   };
 
-  // INSERCIÓN PROGRESIVA NATURAL (En la posición exacta sin invertir el orden)
+  // INSERCIÓN PROGRESIVA NATURAL
   const handleInsertSnippet = (snippetHtml) => {
-    // Si estamos editando una fórmula seleccionada, la reemplaza en el mismo lugar
     if (selectedEquation && editingEquationLatex) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = snippetHtml;
@@ -591,10 +607,8 @@ export default function App() {
       let insertedBlock = formulaNode;
 
       if (parentBlock && parentBlock.parentNode && parentBlock.tagName === 'P' && parentBlock.textContent.trim() === '') {
-        // Si el renglón está vacío, reemplaza ese renglón con la fórmula
         parentBlock.parentNode.replaceChild(insertedBlock, parentBlock);
       } else if (parentBlock && parentBlock.parentNode) {
-        // Si hay texto o es un título, inserta la fórmula inmediatamente DESPUÉS del bloque actual
         if (parentBlock.nextSibling) {
           parentBlock.parentNode.insertBefore(insertedBlock, parentBlock.nextSibling);
         } else {
@@ -605,7 +619,6 @@ export default function App() {
         range.insertNode(insertedBlock);
       }
 
-      // Crea inmediatamente un nuevo párrafo DEBAJO de la fórmula para que el cursor continúe en orden cronológico
       const nextP = document.createElement('p');
       nextP.className = 'indent-first-line';
       nextP.style.textIndent = '0.5in';
@@ -626,7 +639,6 @@ export default function App() {
         lastRangeRef.current = newRange.cloneRange();
       }
     } else {
-      // Inserción en línea estándar
       range.deleteContents();
       range.insertNode(formulaNode);
       const newRange = document.createRange();
@@ -980,23 +992,6 @@ export default function App() {
     }
   };
 
-  // Aplicar color de fuente restaurando el foco y rango de selección
-  const handleApplyColor = (color) => {
-    const activeEl = getActivePageEl();
-    if (!activeEl) return;
-    activeEl.focus();
-
-    const sel = window.getSelection();
-    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
-      sel.removeAllRanges();
-      sel.addRange(lastRangeRef.current);
-    }
-
-    document.execCommand('foreColor', false, color);
-    saveCursorPosition();
-    updateStatsAndPersist();
-  };
-
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
@@ -1016,6 +1011,7 @@ export default function App() {
         onApplyApaDefaultStyle={handleApplyApaDefaultStyle}
         currentIndent={docIndent}
         onApplyIndentStyle={handleApplyIndentStyle}
+        onApplyColor={handleApplyColor}
         onOpenLayoutModal={() => setIsLayoutModalOpen(true)}
         onToggleAudit={() => setIsAuditOpen(!isAuditOpen)}
         onToggleModelDrawer={() => setIsModelDrawerOpen(!isModelDrawerOpen)}
@@ -1031,7 +1027,6 @@ export default function App() {
         currentFont={docFont}
         onFontChange={handleFontChange}
         currentFontSize={docFontSize}
-        onApplyColor={handleApplyColor}
         onFontSizeChange={handleFontSizeChange}
         saveStatus={saveStatus}
       />
