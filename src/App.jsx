@@ -506,8 +506,10 @@ export default function App() {
     saveCursorPosition();
   };
 
+  // Inserción en la posición exacta del cursor (sin saltos ni duplicaciones)
   const handleInsertSnippet = (snippetHtml) => {
-    if (selectedEquation) {
+    // 1. Si explícitamente estamos editando una fórmula existente seleccionada
+    if (selectedEquation && editingEquationLatex) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = snippetHtml;
       const newNode = tempDiv.firstElementChild;
@@ -519,6 +521,81 @@ export default function App() {
         return;
       }
     }
+
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    let range = null;
+
+    // Recupera la posición exacta memorizada
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      range = lastRangeRef.current.cloneRange();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      range = sel.getRangeAt(0);
+    }
+
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(activeEl);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    // Convertir el HTML a nodos reales
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = snippetHtml;
+    const fragment = document.createDocumentFragment();
+    let lastInsertedNode = null;
+
+    while (tempDiv.firstChild) {
+      lastInsertedNode = tempDiv.firstChild;
+      fragment.appendChild(lastInsertedNode);
+    }
+
+    const startNode = range.startContainer;
+    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
+    const currentP = currentElem?.closest('p, div:not(.editor-body):not(.paper-sheet)');
+
+    // Si es un bloque y el párrafo actual está vacío (<p><br></p>), lo reemplaza limpiamente
+    if (currentP && snippetHtml.includes('math-equation-block') && currentP.textContent.trim() === '') {
+      currentP.parentNode.insertBefore(fragment, currentP);
+      currentP.remove();
+    } else {
+      // Si es una fórmula en línea o el párrafo ya tiene texto, inserta exactamente en el cursor
+      range.deleteContents();
+      range.insertNode(fragment);
+    }
+
+    // Ubica el cursor inmediatamente a la derecha del elemento insertado
+    if (lastInsertedNode) {
+      const newRange = document.createRange();
+      if (snippetHtml.includes('math-equation-block')) {
+        const nextP = document.createElement('p');
+        nextP.className = 'indent-first-line';
+        nextP.style.textIndent = '0.5in';
+        nextP.innerHTML = '<br>';
+        if (lastInsertedNode.parentNode) {
+          lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
+          newRange.setStart(nextP, 0);
+        }
+      } else {
+        newRange.setStartAfter(lastInsertedNode);
+      }
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      lastRangeRef.current = newRange.cloneRange();
+    }
+
+    clearEquationSelection();
+    updateStatsAndPersist();
+  };
+  };
 
     const activeEl = getActivePageEl();
     if (!activeEl) return;
@@ -591,7 +668,7 @@ export default function App() {
     }
 
     updateStatsAndPersist();
-  };
+  
 
   const handleFontChange = (newFont) => {
     setDocFont(newFont);
@@ -942,6 +1019,8 @@ export default function App() {
         onOpenFigureModal={() => setIsFigureModalOpen(true)}
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
         onOpenMathModal={() => {
+          saveCursorPosition(); // Guarda la posición exacta antes de abrir
+          setSelectedEquation(null); // Asegura que nunca reemplace la fórmula anterior
           setEditingEquationLatex(null);
           setIsMathModalOpen(true);
         }}
@@ -1133,4 +1212,3 @@ export default function App() {
       <ReferenceModal isOpen={isRefModalOpen} onClose={() => setIsRefModalOpen(false)} onInsertReference={handleInsertSnippet} onInsertInTextCitation={(text) => handleInsertSnippet(`<span>${text}</span>`)} />
     </div>
   );
-}
