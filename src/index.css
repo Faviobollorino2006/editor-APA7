@@ -271,3 +271,91 @@ span[style*="flex-direction:column"] > span:last-child {
   border-color: #94a3b8 !important;
   background-color: #f1f5f9;
 }
+
+/* Marco Interactivo de Ecuación (Estilo Objeto de Microsoft Word) */
+.math-equation-block {
+  position: relative;
+  text-align: center;
+  margin: 1em 0 !important;
+  cursor: pointer;
+  line-height: normal !important;
+  transition: all 0.15s ease;
+}
+
+.math-equation-box {
+  display: inline-block !important;
+  padding: 4px 12px !important;
+  background-color: transparent;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+/* Al pasar el cursor por encima */
+.math-equation-block:hover .math-equation-box {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+/* Estado Seleccionado (Objeto activo) */
+.math-equation-block.is-selected .math-equation-box {
+  border: 1.5px solid #2563eb !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Barra Flotante de Acciones Rápidas del Objeto */
+.equation-quick-toolbar {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 3px 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.equation-quick-toolbar button {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.equation-quick-toolbar button:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.equation-quick-toolbar button.btn-delete {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.equation-quick-toolbar button.btn-delete:hover {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Escalas dinámicas de tamaño */
+.math-scale-sm svg { transform: scale(0.85); transform-origin: center; }
+.math-scale-md svg { transform: scale(1.0); transform-origin: center; }
+.math-scale-lg svg { transform: scale(1.2); transform-origin: center; }
+.math-scale-xl svg { transform: scale(1.4); transform-origin: center; }

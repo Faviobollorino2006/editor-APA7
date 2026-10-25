@@ -46,7 +46,11 @@ export default function App() {
   const mainScrollRef = useRef(null);
   const lastRangeRef = useRef(null);
 
-  // Tipografía y Tamaño Dinámicos
+  // Estados de Objeto Ecuación Seleccionado (Tipo Word)
+  const [selectedEquation, setSelectedEquation] = useState(null);
+  const [editingEquationLatex, setEditingEquationLatex] = useState(null);
+
+  // Tipografía y Tamaño
   const [docFont, setDocFont] = useState('Times New Roman');
   const [docFontSize, setDocFontSize] = useState('12pt');
 
@@ -91,56 +95,17 @@ export default function App() {
     }
   };
 
-  // Reabsorbe textos huérfanos y migra fracciones flex a tablas nativas estables
-  const healFormulaBoxes = (container) => {
-    if (!container) return;
-
-    // 1. Migración automática de fracciones viejas en pantalla a tablas estables
-    const flexFractions = container.querySelectorAll(
-      'span.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]'
-    );
-    flexFractions.forEach((frac) => {
-      const children = Array.from(frac.children);
-      if (children.length >= 2) {
-        const numHtml = children[0].innerHTML;
-        const denHtml = children[1].innerHTML;
-        const table = document.createElement('table');
-        table.className = 'math-fraction-table';
-        table.setAttribute(
-          'style',
-          'display: inline-table !important; vertical-align: middle !important; border-collapse: collapse !important; text-align: center !important; margin: 0 4px !important; border: none !important; font-size: 0.95em !important; line-height: 1.1 !important;'
-        );
-        table.innerHTML = `
-          <tbody>
-            <tr>
-              <td class="math-numerator" style="border-bottom: 1.5px solid #000000 !important; border-top: none !important; border-left: none !important; border-right: none !important; padding: 0 4px 1px 4px !important; text-align: center !important;">${numHtml}</td>
-            </tr>
-            <tr>
-              <td class="math-denominator" style="border: none !important; padding: 1px 4px 0 4px !important; text-align: center !important;">${denHtml}</td>
-            </tr>
-          </tbody>
-        `;
-        frac.parentNode.replaceChild(table, frac);
-      }
+  // Deseleccionar ecuación al hacer clic fuera
+  const clearEquationSelection = () => {
+    document.querySelectorAll('.math-equation-block.is-selected').forEach((el) => {
+      el.classList.remove('is-selected');
+      const tb = el.querySelector('.equation-quick-toolbar');
+      if (tb) tb.remove();
     });
-
-    // 2. Unificación de símbolos dentro de la caja gris
-    const formulaBoxes = container.querySelectorAll('.math-formula-box');
-    formulaBoxes.forEach((box) => {
-      const pill = box.querySelector('.math-formula-inner, span[style*="background-color"], span[style*="background:#f8fafc"]');
-      if (pill) {
-        const strayNodes = Array.from(box.childNodes).filter(
-          (node) => node !== pill && !node.classList?.contains('math-formula-label')
-        );
-        if (strayNodes.length > 0) {
-          strayNodes.forEach((node) => {
-            pill.appendChild(node);
-          });
-        }
-      }
-    });
+    setSelectedEquation(null);
   };
 
+  // Carga inicial
   useEffect(() => {
     const savedFont = localStorage.getItem(STORAGE_KEY_FONT);
     if (savedFont) setDocFont(savedFont);
@@ -156,10 +121,7 @@ export default function App() {
           setPages(parsed.map((_, i) => ({ id: i + 1 })));
           setTimeout(() => {
             parsed.forEach((html, i) => {
-              if (pageRefs.current[i]) {
-                pageRefs.current[i].innerHTML = html;
-                healFormulaBoxes(pageRefs.current[i]);
-              }
+              if (pageRefs.current[i]) pageRefs.current[i].innerHTML = html;
             });
             updateStatsAndPersist();
           }, 80);
@@ -170,10 +132,7 @@ export default function App() {
 
     setPages([{ id: 1 }]);
     setTimeout(() => {
-      if (pageRefs.current[0]) {
-        pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
-        healFormulaBoxes(pageRefs.current[0]);
-      }
+      if (pageRefs.current[0]) pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
       updateStatsAndPersist();
     }, 80);
 
@@ -216,8 +175,12 @@ export default function App() {
 
     pageRefs.current.forEach((el) => {
       if (el) {
-        healFormulaBoxes(el);
-        const html = el.innerHTML;
+        // Clonamos para guardar sin la barra interactiva temporal
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('.equation-quick-toolbar').forEach((t) => t.remove());
+        clone.querySelectorAll('.is-selected').forEach((s) => s.classList.remove('is-selected'));
+
+        const html = clone.innerHTML;
         const text = el.innerText || '';
         pagesHtml.push(html);
         allText += ' ' + text;
@@ -268,218 +231,251 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  const stepOutOfFraction = (fracElement) => {
-    let nextNode = fracElement.nextSibling;
-    if (!nextNode || (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '')) {
-      nextNode = document.createTextNode('\u00A0');
-      fracElement.parentNode.insertBefore(nextNode, fracElement.nextSibling);
+  // ELIMINAR ECUACIÓN SELECCIONADA
+  const handleDeleteEquation = (eqElement) => {
+    const target = eqElement || selectedEquation;
+    if (!target) return;
+
+    const parent = target.parentNode;
+    target.remove();
+    clearEquationSelection();
+
+    // Dejar un párrafo limpio con cursor si quedó vacío
+    if (parent && (!parent.querySelector('p') || parent.children.length === 0)) {
+      const newP = document.createElement('p');
+      newP.className = 'indent-first-line';
+      newP.innerHTML = '<br>';
+      parent.appendChild(newP);
     }
 
-    const sel = window.getSelection();
-    const newRange = document.createRange();
-    newRange.setStart(nextNode, nextNode.nodeType === Node.TEXT_NODE ? 1 : 0);
-    newRange.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
-    lastRangeRef.current = newRange.cloneRange();
     updateStatsAndPersist();
   };
 
-  // Clics inteligentes: si se hace clic fuera de la píldora gris, el cursor entra a la caja
+  // CAMBIAR TAMAÑO DE LA ECUACIÓN (Más Grande / Más Pequeño)
+  const handleScaleEquation = (eqElement, scaleDelta) => {
+    const target = eqElement || selectedEquation;
+    if (!target) return;
+
+    const scales = ['math-scale-sm', 'math-scale-md', 'math-scale-lg', 'math-scale-xl'];
+    let currentIdx = scales.findIndex((cls) => target.classList.contains(cls));
+    if (currentIdx === -1) currentIdx = 1; // default md
+
+    let nextIdx = Math.max(0, Math.min(scales.length - 1, currentIdx + scaleDelta));
+    scales.forEach((cls) => target.classList.remove(cls));
+    target.classList.add(scales[nextIdx]);
+
+    updateStatsAndPersist();
+  };
+
+  // CONMUTAR ALINEACIÓN (Centro / Izquierda)
+  const handleAlignEquation = (eqElement) => {
+    const target = eqElement || selectedEquation;
+    if (!target) return;
+
+    if (target.style.textAlign === 'left') {
+      target.style.textAlign = 'center';
+    } else {
+      target.style.textAlign = 'left';
+    }
+    updateStatsAndPersist();
+  };
+
+  // REABRIR MODAL PARA EDITAR LA FÓRMULA EXISTENTE
+  const handleEditEquation = (eqElement) => {
+    const target = eqElement || selectedEquation;
+    if (!target) return;
+
+    const rawLatex = target.getAttribute('data-latex');
+    if (rawLatex) {
+      setEditingEquationLatex(decodeURIComponent(rawLatex));
+      setIsMathModalOpen(true);
+    }
+  };
+
+  // Acoplar la Barra de Herramientas Flotante al Objeto Ecuación
+  const attachToolbarToEquation = (eqBlock) => {
+    clearEquationSelection();
+    eqBlock.classList.add('is-selected');
+    setSelectedEquation(eqBlock);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'equation-quick-toolbar no-print';
+
+    toolbar.innerHTML = `
+      <button type="button" class="btn-scale-down" title="Hacer más pequeña">🔍 -</button>
+      <button type="button" class="btn-scale-up" title="Hacer más grande">🔍 +</button>
+      <button type="button" class="btn-align" title="Alineación">≡</button>
+      <button type="button" class="btn-edit" title="Editar fórmula">✏️ Editar</button>
+      <button type="button" class="btn-delete" title="Eliminar fórmula por completo (Supr)">🗑️</button>
+    `;
+
+    toolbar.querySelector('.btn-scale-down').onclick = (e) => {
+      e.stopPropagation();
+      handleScaleEquation(eqBlock, -1);
+    };
+
+    toolbar.querySelector('.btn-scale-up').onclick = (e) => {
+      e.stopPropagation();
+      handleScaleEquation(eqBlock, 1);
+    };
+
+    toolbar.querySelector('.btn-align').onclick = (e) => {
+      e.stopPropagation();
+      handleAlignEquation(eqBlock);
+    };
+
+    toolbar.querySelector('.btn-edit').onclick = (e) => {
+      e.stopPropagation();
+      handleEditEquation(eqBlock);
+    };
+
+    toolbar.querySelector('.btn-delete').onclick = (e) => {
+      e.stopPropagation();
+      handleDeleteEquation(eqBlock);
+    };
+
+    eqBlock.appendChild(toolbar);
+  };
+
+  // Manejo de Clics: Detección de Objetos Ecuación
   const handleEditorClick = (e, index) => {
     activePageIndex.current = index;
     const target = e.target;
-    const formulaBox = target.closest('.math-formula-box');
+    const eqBlock = target.closest('.math-equation-block');
 
-    if (formulaBox) {
-      healFormulaBoxes(pageRefs.current[index]);
-      const pill = formulaBox.querySelector('.math-formula-inner, span[style*="background-color"], span[style*="background:#f8fafc"]');
-
-      if (pill) {
-        // Si el clic fue en el margen o fuera de la píldora gris, colocar el cursor DENTRO de la píldora al final
-        if (!pill.contains(target) || target === formulaBox) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          let lastNode = pill.lastChild;
-          if (!lastNode || (lastNode.nodeType === Node.TEXT_NODE && lastNode.textContent === '')) {
-            lastNode = document.createTextNode('\u00A0');
-            pill.appendChild(lastNode);
-          }
-
-          const sel = window.getSelection();
-          const newRange = document.createRange();
-          newRange.selectNodeContents(pill);
-          newRange.collapse(false);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-          lastRangeRef.current = newRange.cloneRange();
-          return;
-        }
-
-        // Si se hace clic a la derecha de la fracción dentro de la píldora
-        const frac = pill.querySelector('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
-        if (frac) {
-          const fracRect = frac.getBoundingClientRect();
-          if (e.clientX > fracRect.right && (!target || !frac.contains(target))) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            let nextNode = frac.nextSibling;
-            if (!nextNode || nextNode.nodeType !== Node.TEXT_NODE) {
-              nextNode = document.createTextNode('\u00A0');
-              frac.parentNode.insertBefore(nextNode, frac.nextSibling);
-            }
-
-            const sel = window.getSelection();
-            const newRange = document.createRange();
-            newRange.setStart(nextNode, nextNode.length);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            lastRangeRef.current = newRange.cloneRange();
-            return;
-          }
-        }
-      }
+    if (eqBlock) {
+      e.preventDefault();
+      e.stopPropagation();
+      attachToolbarToEquation(eqBlock);
+      return;
     }
+
+    clearEquationSelection();
     saveCursorPosition();
   };
 
+  // Manejo de Teclado: Detección de Borrado con Backspace / Supr
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
 
-    // 1. Tabulador
+    // Si hay una ecuación seleccionada y pulsa Supr o Retroceso -> Borrarla al instante
+    if (selectedEquation && (e.key === 'Backspace' || e.key === 'Delete')) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDeleteEquation(selectedEquation);
+      return;
+    }
+
+    // Escape deselecciona el objeto
+    if (e.key === 'Escape') {
+      clearEquationSelection();
+      return;
+    }
+
+    // Tabulador normal
     if (e.key === 'Tab') {
-      const sel = window.getSelection();
-      const node = sel?.anchorNode;
-      const elem = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-      const frac = elem?.closest('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
-
-      if (frac) {
-        e.preventDefault();
-        e.stopPropagation();
-        stepOutOfFraction(frac);
-        return;
-      }
-
       e.preventDefault();
       e.stopPropagation();
       insertTabAtCursor();
       return;
     }
 
-    // 2. Escape con flechas
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Escape') {
-      const sel = window.getSelection();
-      if (sel && sel.isCollapsed && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        const node = range.startContainer;
-        const elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-
-        const frac = elem?.closest('.math-fraction, span[style*="flex-direction: column"], span[style*="flex-direction:column"]');
-        if (frac) {
-          const isAtEnd = (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length);
-          const isDenominator = frac.children.length >= 2 && frac.children[1].contains(elem);
-          const isNumerator = frac.children.length >= 1 && frac.children[0].contains(elem);
-
-          if (isDenominator && (isAtEnd || e.key === 'Escape' || e.key === 'ArrowRight')) {
-            e.preventDefault();
-            e.stopPropagation();
-            stepOutOfFraction(frac);
-            return;
-          }
-
-          if (isNumerator && e.key === 'ArrowDown') {
-            e.preventDefault();
-            e.stopPropagation();
-            const den = frac.children[1];
-            const newRange = document.createRange();
-            newRange.selectNodeContents(den);
-            newRange.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            lastRangeRef.current = newRange.cloneRange();
-            return;
-          }
-
-          if (isDenominator && e.key === 'ArrowUp') {
-            e.preventDefault();
-            e.stopPropagation();
-            const num = frac.children[0];
-            const newRange = document.createRange();
-            newRange.selectNodeContents(num);
-            newRange.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            lastRangeRef.current = newRange.cloneRange();
-            return;
-          }
-        }
-
-        const scriptElem = elem?.closest('sup, sub');
-        if (scriptElem && pageRefs.current[index]?.contains(scriptElem)) {
-          const isAtEnd = (node.nodeType === Node.TEXT_NODE && range.startOffset === node.length);
-          if (isAtEnd || e.key === 'Escape' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            e.stopPropagation();
-
-            let targetNode = scriptElem.nextSibling;
-            if (!targetNode || (targetNode.nodeType === Node.TEXT_NODE && targetNode.textContent === '')) {
-              const spacer = document.createTextNode('\u00A0');
-              scriptElem.parentNode.insertBefore(spacer, scriptElem.nextSibling);
-              targetNode = spacer;
-            }
-
-            const newRange = document.createRange();
-            newRange.setStart(targetNode, targetNode.nodeType === Node.TEXT_NODE ? 1 : 0);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            lastRangeRef.current = newRange.cloneRange();
-            updateStatsAndPersist();
-            return;
-          }
-        }
-      }
-    }
-
-    // 3. Salida de la caja de fórmula con Enter
+    // Enter normal
     if (e.key === 'Enter') {
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        let node = range.startContainer;
-        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-        const formulaBox = elem?.closest('.math-formula-box');
-
-        if (formulaBox) {
-          e.preventDefault();
-          let nextP = formulaBox.nextElementSibling;
-          if (!nextP || nextP.tagName !== 'P') {
-            nextP = document.createElement('p');
-            nextP.className = 'indent-first-line';
-            nextP.innerHTML = '<br>';
-            formulaBox.parentNode.insertBefore(nextP, formulaBox.nextSibling);
-          }
-
-          const newRange = document.createRange();
-          newRange.setStart(nextP, 0);
-          newRange.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-          lastRangeRef.current = newRange.cloneRange();
-          updateStatsAndPersist();
-          return;
-        }
-      }
-
       const el = pageRefs.current[index];
       if (el && !el.querySelector('p')) {
         e.preventDefault();
         document.execCommand('insertParagraph', false);
       }
     }
+  };
+
+  // Inserción de Snippet en la Posición Exacta del Cursor
+  const handleInsertSnippet = (snippetHtml) => {
+    // Si estamos editando una ecuación existente, la reemplazamos directamente
+    if (selectedEquation) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = snippetHtml;
+      const newNode = tempDiv.firstElementChild;
+      if (newNode) {
+        selectedEquation.parentNode.replaceChild(newNode, selectedEquation);
+        clearEquationSelection();
+        setEditingEquationLatex(null);
+        updateStatsAndPersist();
+        return;
+      }
+    }
+
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    let range = null;
+
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      range = lastRangeRef.current.cloneRange();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      range = sel.getRangeAt(0);
+    }
+
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(activeEl);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = snippetHtml;
+    const fragment = document.createDocumentFragment();
+    let lastInsertedNode = null;
+
+    while (tempDiv.firstChild) {
+      lastInsertedNode = tempDiv.firstChild;
+      fragment.appendChild(lastInsertedNode);
+    }
+
+    const startNode = range.startContainer;
+    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
+    const currentP = currentElem?.closest('p');
+
+    if (currentP && snippetHtml.includes('math-equation-block')) {
+      if (currentP.textContent.trim() === '') {
+        currentP.parentNode.insertBefore(fragment, currentP);
+        currentP.remove();
+      } else {
+        if (currentP.nextSibling) {
+          currentP.parentNode.insertBefore(fragment, currentP.nextSibling);
+        } else {
+          currentP.parentNode.appendChild(fragment);
+        }
+      }
+    } else {
+      range.deleteContents();
+      range.insertNode(fragment);
+    }
+
+    if (lastInsertedNode) {
+      const nextP = document.createElement('p');
+      nextP.className = 'indent-first-line';
+      nextP.innerHTML = '<br>';
+
+      if (lastInsertedNode.parentNode) {
+        lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
+        const newRange = document.createRange();
+        newRange.setStart(nextP, 0);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        lastRangeRef.current = newRange.cloneRange();
+      }
+    }
+
+    updateStatsAndPersist();
   };
 
   const handleFontChange = (newFont) => {
@@ -725,31 +721,10 @@ export default function App() {
     updateStatsAndPersist();
   };
 
-  // Inserción de Símbolos asegurando entrada a la caja de fórmula
   const handleInsertSymbol = (symbolData) => {
     const activeEl = getActivePageEl();
     if (!activeEl) return;
     activeEl.focus();
-
-    // Si el cursor estaba en la fila de la fórmula, garantizar que el foco esté DENTRO de la píldora gris
-    if (lastRangeRef.current) {
-      let node = lastRangeRef.current.startContainer;
-      let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-      const formulaBox = elem?.closest('.math-formula-box');
-
-      if (formulaBox) {
-        const pill = formulaBox.querySelector('.math-formula-inner, span[style*="background-color"], span[style*="background:#f8fafc"]');
-        if (pill && !pill.contains(node)) {
-          const sel = window.getSelection();
-          const newRange = document.createRange();
-          newRange.selectNodeContents(pill);
-          newRange.collapse(false);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-          lastRangeRef.current = newRange.cloneRange();
-        }
-      }
-    }
 
     const char = typeof symbolData === 'string' ? symbolData : symbolData.char;
     const isOp = typeof symbolData === 'object' && symbolData.isOperator;
@@ -757,87 +732,6 @@ export default function App() {
 
     const symbolHtml = `<span class="math-symbol ${isOp ? 'math-operator' : ''}" style="font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Computer Modern', serif; font-style: ${fontStyle};">${char}</span>&nbsp;`;
     handleInsertSnippet(symbolHtml);
-  };
-
-  // Inserción precisa en la posición del cursor (sin saltos al inicio de la página)
-  const handleInsertSnippet = (snippetHtml) => {
-    const activeEl = getActivePageEl();
-    if (!activeEl) return;
-    activeEl.focus();
-
-    const sel = window.getSelection();
-    let range = null;
-
-    // Recupera la posición exacta que tenía el cursor antes de abrir el modal
-    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
-      range = lastRangeRef.current.cloneRange();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-      range = sel.getRangeAt(0);
-    }
-
-    if (!range) {
-      // Si por alguna razón no hay rango, lo coloca al final del documento y no arriba
-      range = document.createRange();
-      range.selectNodeContents(activeEl);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-
-    // Convertir el HTML a nodos reales
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = snippetHtml;
-    const fragment = document.createDocumentFragment();
-    let lastInsertedNode = null;
-
-    while (tempDiv.firstChild) {
-      lastInsertedNode = tempDiv.firstChild;
-      fragment.appendChild(lastInsertedNode);
-    }
-
-    // Si es un bloque de fórmula y el cursor está en un párrafo vacío (<p><br></p>), reemplaza el párrafo
-    const startNode = range.startContainer;
-    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
-    const currentP = currentElem?.closest('p');
-
-    if (currentP && snippetHtml.includes('math-equation-block')) {
-      if (currentP.textContent.trim() === '') {
-        currentP.parentNode.insertBefore(fragment, currentP);
-        currentP.remove();
-      } else {
-        // Si el párrafo tiene texto, inserta la fórmula inmediatamente debajo
-        if (currentP.nextSibling) {
-          currentP.parentNode.insertBefore(fragment, currentP.nextSibling);
-        } else {
-          currentP.parentNode.appendChild(fragment);
-        }
-      }
-    } else {
-      // Inserción en línea estándar
-      range.deleteContents();
-      range.insertNode(fragment);
-    }
-
-    // Posiciona el cursor inmediatamente después de la fórmula insertada
-    if (lastInsertedNode) {
-      const nextP = document.createElement('p');
-      nextP.className = 'indent-first-line';
-      nextP.innerHTML = '<br>';
-
-      if (lastInsertedNode.parentNode) {
-        lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
-        const newRange = document.createRange();
-        newRange.setStart(nextP, 0);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
-        lastRangeRef.current = newRange.cloneRange();
-      }
-    }
-
-    updateStatsAndPersist();
   };
 
   const handleResetDocument = () => {
@@ -873,6 +767,7 @@ export default function App() {
   };
 
   const handleExportWord = async () => {
+    clearEquationSelection();
     await exportToDocx(pageRefs.current, 'Investigacion_Estadistica_APA7.docx', {
       font: docFont,
       size: docFontSize,
@@ -881,6 +776,7 @@ export default function App() {
 
   const handleExportPdf = async () => {
     try {
+      clearEquationSelection();
       setSaveStatus('Generando PDF...');
       await exportToPdf(null, 'Investigacion_Estadistica_APA7.pdf');
       setSaveStatus('PDF descargado');
@@ -958,7 +854,10 @@ export default function App() {
         onOpenTableModal={() => setIsTableModalOpen(true)}
         onOpenFigureModal={() => setIsFigureModalOpen(true)}
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
-        onOpenMathModal={() => setIsMathModalOpen(true)}
+        onOpenMathModal={() => {
+          setEditingEquationLatex(null);
+          setIsMathModalOpen(true);
+        }}
         onOpenSymbolModal={() => setIsSymbolModalOpen(true)}
         onApplyApaDefaultStyle={handleApplyApaDefaultStyle}
         onApplyIndentStyle={handleApplyIndentStyle}
@@ -1132,7 +1031,15 @@ export default function App() {
 
       <SymbolModal isOpen={isSymbolModalOpen} onClose={() => setIsSymbolModalOpen(false)} onInsertSymbol={handleInsertSymbol} />
       <LayoutModal isOpen={isLayoutModalOpen} onClose={() => setIsLayoutModalOpen(false)} layout={layout} onChangeLayout={setLayout} />
-      <MathModal isOpen={isMathModalOpen} onClose={() => setIsMathModalOpen(false)} onInsert={handleInsertSnippet} />
+      <MathModal
+        isOpen={isMathModalOpen}
+        onClose={() => {
+          setIsMathModalOpen(false);
+          setEditingEquationLatex(null);
+        }}
+        onInsert={handleInsertSnippet}
+        editingLatex={editingEquationLatex}
+      />
       <TableModal isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} onInsert={handleInsertSnippet} />
       <FigureModal isOpen={isFigureModalOpen} onClose={() => setIsFigureModalOpen(false)} onInsert={handleInsertSnippet} />
       <ReferenceModal isOpen={isRefModalOpen} onClose={() => setIsRefModalOpen(false)} onInsertReference={handleInsertSnippet} onInsertInTextCitation={(text) => handleInsertSnippet(`<span>${text}</span>`)} />
