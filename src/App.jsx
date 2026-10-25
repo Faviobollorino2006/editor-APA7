@@ -980,6 +980,23 @@ export default function App() {
     }
   };
 
+  // Aplicar color de fuente restaurando el foco y rango de selección
+  const handleApplyColor = (color) => {
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(lastRangeRef.current);
+    }
+
+    document.execCommand('foreColor', false, color);
+    saveCursorPosition();
+    updateStatsAndPersist();
+  };
+
   const marginStyle = `${layout.marginSize}cm`;
 
   return (
@@ -1014,6 +1031,7 @@ export default function App() {
         currentFont={docFont}
         onFontChange={handleFontChange}
         currentFontSize={docFontSize}
+        onApplyColor={handleApplyColor}
         onFontSizeChange={handleFontSizeChange}
         saveStatus={saveStatus}
       />
