@@ -72,35 +72,34 @@ html, body {
 }
 
 /* Párrafos y Sangrías APA */
-.editor-body p {
-  text-indent: 0.5in;
-  margin: 0;
-  text-align: left;
-  min-height: 1.5em;
+/* Modos de Sangría Universales APA 7 (Compatibles con p, div y bloques de texto) */
+.editor-body p.indent-first-line,
+.editor-body div.indent-first-line,
+.indent-first-line {
+  text-indent: 0.5in !important;
+  padding-left: 0 !important;
 }
 
-.editor-body .no-indent,
-.editor-body .no-indent p {
+.editor-body p.indent-hanging,
+.editor-body div.indent-hanging,
+.indent-hanging {
+  padding-left: 0.5in !important;
+  text-indent: -0.5in !important;
+}
+
+.editor-body p.indent-none,
+.editor-body div.indent-none,
+.indent-none {
   text-indent: 0 !important;
+  padding-left: 0 !important;
 }
 
-/* Títulos APA */
-.editor-body h3 {
-  font-size: 12pt;
-  font-weight: bold;
-  text-align: center;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  text-indent: 0;
-}
-
-.editor-body h4 {
-  font-size: 12pt;
-  font-weight: bold;
-  text-align: left;
-  margin-top: 1.2em;
-  margin-bottom: 0.4em;
-  text-indent: 0;
+.editor-body p.indent-block,
+.editor-body div.indent-block,
+.indent-block {
+  text-indent: 0 !important;
+  padding-left: 0.5in !important;
+  margin: 0.5em 0 !important;
 }
 
 /* Tablas Estadísticas APA 7 */

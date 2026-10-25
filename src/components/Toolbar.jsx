@@ -24,6 +24,8 @@ export default function Toolbar({
   currentFont,
   onFontChange,
   currentFontSize,
+  currentIndent = 'none',
+  onApplyIndentStyle,
   onFontSizeChange,
   saveStatus,
 }) {
@@ -243,12 +245,16 @@ export default function Toolbar({
         <div className="flex items-center space-x-1">
           <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-0.5 shadow-2xs">
             <label className="text-[10px] text-slate-400 mr-1.5 font-medium">Sangría:</label>
-            <select onChange={(e) => onApplyIndentStyle(e.target.value)} defaultValue="firstLine" className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans">
-              <option value="firstLine">1.ª Línea (1.27 cm APA)</option>
-              <option value="hanging">Francesa (Referencias)</option>
-              <option value="none">Sin Sangría</option>
-              <option value="block">Cita en Bloque</option>
-            </select>
+            <select
+  value={currentIndent}
+  onChange={(e) => onApplyIndentStyle(e.target.value)}
+  className="bg-transparent text-slate-800 outline-none cursor-pointer text-xs font-sans pr-1"
+>
+  <option value="none">Sin Sangría</option>
+  <option value="firstLine">1.ª Línea (1.27 cm APA)</option>
+  <option value="hanging">Francesa (1.27 cm)</option>
+  <option value="block">Bloque (Cita textual)</option>
+</select>
           </div>
 
           <button

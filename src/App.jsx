@@ -46,13 +46,12 @@ export default function App() {
   const mainScrollRef = useRef(null);
   const lastRangeRef = useRef(null);
 
-  // Estados de Objeto Ecuación Seleccionado (Tipo Word)
+  // Estados de Formato y Selección
   const [selectedEquation, setSelectedEquation] = useState(null);
   const [editingEquationLatex, setEditingEquationLatex] = useState(null);
-
-  // Tipografía y Tamaño
   const [docFont, setDocFont] = useState('Times New Roman');
   const [docFontSize, setDocFontSize] = useState('12pt');
+  const [docIndent, setDocIndent] = useState('none');
 
   // Modales
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
@@ -88,14 +87,26 @@ export default function App() {
     hasReferences: false,
   });
 
+  // Guarda la posición del cursor y sincroniza el estado de la sangría activa
   const saveCursorPosition = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       lastRangeRef.current = sel.getRangeAt(0).cloneRange();
+
+      const node = sel.anchorNode;
+      if (node) {
+        const elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        const block = elem?.closest('p, div, h3, h4');
+        if (block) {
+          if (block.classList.contains('indent-first-line')) setDocIndent('firstLine');
+          else if (block.classList.contains('indent-hanging')) setDocIndent('hanging');
+          else if (block.classList.contains('indent-block')) setDocIndent('block');
+          else if (block.classList.contains('indent-none') || block.tagName === 'H3' || block.tagName === 'H4') setDocIndent('none');
+        }
+      }
     }
   };
 
-  // Deseleccionar ecuación al hacer clic fuera
   const clearEquationSelection = () => {
     document.querySelectorAll('.math-equation-block.is-selected').forEach((el) => {
       el.classList.remove('is-selected');
@@ -105,7 +116,6 @@ export default function App() {
     setSelectedEquation(null);
   };
 
-  // Carga inicial
   useEffect(() => {
     const savedFont = localStorage.getItem(STORAGE_KEY_FONT);
     if (savedFont) setDocFont(savedFont);
@@ -175,7 +185,6 @@ export default function App() {
 
     pageRefs.current.forEach((el) => {
       if (el) {
-        // Clonamos para guardar sin la barra interactiva temporal
         const clone = el.cloneNode(true);
         clone.querySelectorAll('.equation-quick-toolbar').forEach((t) => t.remove());
         clone.querySelectorAll('.is-selected').forEach((s) => s.classList.remove('is-selected'));
@@ -231,60 +240,225 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  // ELIMINAR ECUACIÓN SELECCIONADA
+  // APLICACIÓN ROBUSTA DE SANGRÍA (Con restauración garantizada de selección)
+  const handleApplyIndentStyle = (indentType) => {
+    setDocIndent(indentType);
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    let range = null;
+
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      range = lastRangeRef.current.cloneRange();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      range = sel.getRangeAt(0);
+    }
+
+    if (!range) return;
+
+    const applyToBlock = (el) => {
+      if (!el || el === activeEl || el.classList.contains('paper-sheet') || el.classList.contains('page-header-overlay')) return;
+      el.classList.remove('indent-first-line', 'indent-hanging', 'indent-none', 'indent-block');
+
+      if (indentType === 'firstLine') {
+        el.classList.add('indent-first-line');
+        el.style.textIndent = '0.5in';
+        el.style.paddingLeft = '0px';
+      } else if (indentType === 'hanging') {
+        el.classList.add('indent-hanging');
+        el.style.textIndent = '-0.5in';
+        el.style.paddingLeft = '0.5in';
+      } else if (indentType === 'none') {
+        el.classList.add('indent-none');
+        el.style.textIndent = '0px';
+        el.style.paddingLeft = '0px';
+      } else if (indentType === 'block') {
+        el.classList.add('indent-block');
+        el.style.textIndent = '0px';
+        el.style.paddingLeft = '0.5in';
+      }
+    };
+
+    let startNode = range.startContainer;
+    let elem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
+    let targetBlock = elem?.closest('p, div:not(.editor-body):not(.paper-sheet), h3, h4, blockquote');
+
+    if (!targetBlock || targetBlock === activeEl) {
+      document.execCommand('formatBlock', false, 'p');
+      const newSel = window.getSelection();
+      if (newSel && newSel.anchorNode) {
+        let n = newSel.anchorNode.nodeType === Node.TEXT_NODE ? newSel.anchorNode.parentElement : newSel.anchorNode;
+        targetBlock = n.closest('p, div');
+      }
+    }
+
+    if (targetBlock) {
+      applyToBlock(targetBlock);
+    }
+
+    saveCursorPosition();
+    updateStatsAndPersist();
+  };
+
+  // CONTROLADOR DE TECLADO: HERENCIA AUTOMÁTICA DE SANGRÍAS AL PRESIONAR ENTER
+  const handleEditorKeyDown = (e, index) => {
+    activePageIndex.current = index;
+
+    // Borrado de ecuación seleccionada con Supr o Retroceso
+    if (selectedEquation && (e.key === 'Backspace' || e.key === 'Delete')) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDeleteEquation(selectedEquation);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      clearEquationSelection();
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      insertTabAtCursor();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        let node = range.startContainer;
+        let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+
+        // Salto fuera de fórmulas matemáticas con Enter
+        const formulaBox = elem?.closest('.math-equation-block, .math-formula-box');
+        if (formulaBox) {
+          e.preventDefault();
+          let nextP = formulaBox.nextElementSibling;
+          if (!nextP || nextP.tagName !== 'P') {
+            nextP = document.createElement('p');
+            nextP.className = 'indent-first-line';
+            nextP.style.textIndent = '0.5in';
+            nextP.innerHTML = '<br>';
+            formulaBox.parentNode.insertBefore(nextP, formulaBox.nextSibling);
+          }
+          const newRange = document.createRange();
+          newRange.setStart(nextP, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          updateStatsAndPersist();
+          return;
+        }
+
+        // Salto desde encabezados (h3, h4): Genera directamente un párrafo con sangría APA 7
+        const heading = elem?.closest('h3, h4, h5');
+        if (heading) {
+          e.preventDefault();
+          const newP = document.createElement('p');
+          newP.className = 'indent-first-line';
+          newP.style.textIndent = '0.5in';
+          newP.style.lineHeight = layout.lineHeight;
+          newP.innerHTML = '<br>';
+
+          if (heading.nextSibling) {
+            heading.parentNode.insertBefore(newP, heading.nextSibling);
+          } else {
+            heading.parentNode.appendChild(newP);
+          }
+
+          const newRange = document.createRange();
+          newRange.setStart(newP, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          setDocIndent('firstLine');
+          updateStatsAndPersist();
+          return;
+        }
+
+        // Propagación de sangría entre párrafos normales
+        const block = elem?.closest('p, div');
+        if (block && block.classList.contains('indent-first-line') && !block.closest('.no-indent')) {
+          e.preventDefault();
+          const newP = document.createElement('p');
+          newP.className = 'indent-first-line';
+          newP.style.textIndent = '0.5in';
+          newP.style.lineHeight = layout.lineHeight;
+          newP.innerHTML = '<br>';
+
+          if (block.nextSibling) {
+            block.parentNode.insertBefore(newP, block.nextSibling);
+          } else {
+            block.parentNode.appendChild(newP);
+          }
+
+          const newRange = document.createRange();
+          newRange.setStart(newP, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastRangeRef.current = newRange.cloneRange();
+          setDocIndent('firstLine');
+          updateStatsAndPersist();
+          return;
+        }
+      }
+
+      const el = pageRefs.current[index];
+      if (el && !el.querySelector('p')) {
+        e.preventDefault();
+        document.execCommand('insertParagraph', false);
+      }
+    }
+  };
+
   const handleDeleteEquation = (eqElement) => {
     const target = eqElement || selectedEquation;
     if (!target) return;
-
     const parent = target.parentNode;
     target.remove();
     clearEquationSelection();
 
-    // Dejar un párrafo limpio con cursor si quedó vacío
     if (parent && (!parent.querySelector('p') || parent.children.length === 0)) {
       const newP = document.createElement('p');
       newP.className = 'indent-first-line';
       newP.innerHTML = '<br>';
       parent.appendChild(newP);
     }
-
     updateStatsAndPersist();
   };
 
-  // CAMBIAR TAMAÑO DE LA ECUACIÓN (Más Grande / Más Pequeño)
   const handleScaleEquation = (eqElement, scaleDelta) => {
     const target = eqElement || selectedEquation;
     if (!target) return;
-
     const scales = ['math-scale-sm', 'math-scale-md', 'math-scale-lg', 'math-scale-xl'];
     let currentIdx = scales.findIndex((cls) => target.classList.contains(cls));
-    if (currentIdx === -1) currentIdx = 1; // default md
+    if (currentIdx === -1) currentIdx = 1;
 
     let nextIdx = Math.max(0, Math.min(scales.length - 1, currentIdx + scaleDelta));
     scales.forEach((cls) => target.classList.remove(cls));
     target.classList.add(scales[nextIdx]);
-
     updateStatsAndPersist();
   };
 
-  // CONMUTAR ALINEACIÓN (Centro / Izquierda)
   const handleAlignEquation = (eqElement) => {
     const target = eqElement || selectedEquation;
     if (!target) return;
-
-    if (target.style.textAlign === 'left') {
-      target.style.textAlign = 'center';
-    } else {
-      target.style.textAlign = 'left';
-    }
+    target.style.textAlign = target.style.textAlign === 'left' ? 'center' : 'left';
     updateStatsAndPersist();
   };
 
-  // REABRIR MODAL PARA EDITAR LA FÓRMULA EXISTENTE
   const handleEditEquation = (eqElement) => {
     const target = eqElement || selectedEquation;
     if (!target) return;
-
     const rawLatex = target.getAttribute('data-latex');
     if (rawLatex) {
       setEditingEquationLatex(decodeURIComponent(rawLatex));
@@ -292,7 +466,6 @@ export default function App() {
     }
   };
 
-  // Acoplar la Barra de Herramientas Flotante al Objeto Ecuación
   const attachToolbarToEquation = (eqBlock) => {
     clearEquationSelection();
     eqBlock.classList.add('is-selected');
@@ -300,7 +473,6 @@ export default function App() {
 
     const toolbar = document.createElement('div');
     toolbar.className = 'equation-quick-toolbar no-print';
-
     toolbar.innerHTML = `
       <button type="button" class="btn-scale-down" title="Hacer más pequeña">🔍 -</button>
       <button type="button" class="btn-scale-up" title="Hacer más grande">🔍 +</button>
@@ -309,35 +481,15 @@ export default function App() {
       <button type="button" class="btn-delete" title="Eliminar fórmula por completo (Supr)">🗑️</button>
     `;
 
-    toolbar.querySelector('.btn-scale-down').onclick = (e) => {
-      e.stopPropagation();
-      handleScaleEquation(eqBlock, -1);
-    };
-
-    toolbar.querySelector('.btn-scale-up').onclick = (e) => {
-      e.stopPropagation();
-      handleScaleEquation(eqBlock, 1);
-    };
-
-    toolbar.querySelector('.btn-align').onclick = (e) => {
-      e.stopPropagation();
-      handleAlignEquation(eqBlock);
-    };
-
-    toolbar.querySelector('.btn-edit').onclick = (e) => {
-      e.stopPropagation();
-      handleEditEquation(eqBlock);
-    };
-
-    toolbar.querySelector('.btn-delete').onclick = (e) => {
-      e.stopPropagation();
-      handleDeleteEquation(eqBlock);
-    };
+    toolbar.querySelector('.btn-scale-down').onclick = (e) => { e.stopPropagation(); handleScaleEquation(eqBlock, -1); };
+    toolbar.querySelector('.btn-scale-up').onclick = (e) => { e.stopPropagation(); handleScaleEquation(eqBlock, 1); };
+    toolbar.querySelector('.btn-align').onclick = (e) => { e.stopPropagation(); handleAlignEquation(eqBlock); };
+    toolbar.querySelector('.btn-edit').onclick = (e) => { e.stopPropagation(); handleEditEquation(eqBlock); };
+    toolbar.querySelector('.btn-delete').onclick = (e) => { e.stopPropagation(); handleDeleteEquation(eqBlock); };
 
     eqBlock.appendChild(toolbar);
   };
 
-  // Manejo de Clics: Detección de Objetos Ecuación
   const handleEditorClick = (e, index) => {
     activePageIndex.current = index;
     const target = e.target;
@@ -354,45 +506,7 @@ export default function App() {
     saveCursorPosition();
   };
 
-  // Manejo de Teclado: Detección de Borrado con Backspace / Supr
-  const handleEditorKeyDown = (e, index) => {
-    activePageIndex.current = index;
-
-    // Si hay una ecuación seleccionada y pulsa Supr o Retroceso -> Borrarla al instante
-    if (selectedEquation && (e.key === 'Backspace' || e.key === 'Delete')) {
-      e.preventDefault();
-      e.stopPropagation();
-      handleDeleteEquation(selectedEquation);
-      return;
-    }
-
-    // Escape deselecciona el objeto
-    if (e.key === 'Escape') {
-      clearEquationSelection();
-      return;
-    }
-
-    // Tabulador normal
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      e.stopPropagation();
-      insertTabAtCursor();
-      return;
-    }
-
-    // Enter normal
-    if (e.key === 'Enter') {
-      const el = pageRefs.current[index];
-      if (el && !el.querySelector('p')) {
-        e.preventDefault();
-        document.execCommand('insertParagraph', false);
-      }
-    }
-  };
-
-  // Inserción de Snippet en la Posición Exacta del Cursor
   const handleInsertSnippet = (snippetHtml) => {
-    // Si estamos editando una ecuación existente, la reemplazamos directamente
     if (selectedEquation) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = snippetHtml;
@@ -462,6 +576,7 @@ export default function App() {
     if (lastInsertedNode) {
       const nextP = document.createElement('p');
       nextP.className = 'indent-first-line';
+      nextP.style.textIndent = '0.5in';
       nextP.innerHTML = '<br>';
 
       if (lastInsertedNode.parentNode) {
@@ -689,35 +804,7 @@ export default function App() {
     document.execCommand('justifyLeft', false, null);
     handleFontChange('Times New Roman');
     handleFontSizeChange('12pt');
-
-    const sel = window.getSelection();
-    if (sel && sel.anchorNode) {
-      let node = sel.anchorNode;
-      if (node.nodeType === 3) node = node.parentNode;
-      const p = node.closest('p');
-      if (p) {
-        p.className = 'indent-first-line';
-        p.style.lineHeight = '2.0';
-        p.style.textAlign = 'left';
-      }
-    }
-    updateStatsAndPersist();
-  };
-
-  const handleApplyIndentStyle = (indentType) => {
-    const sel = window.getSelection();
-    if (sel && sel.anchorNode) {
-      let node = sel.anchorNode;
-      if (node.nodeType === 3) node = node.parentNode;
-      const p = node.closest('p');
-      if (p) {
-        p.classList.remove('indent-first-line', 'indent-hanging', 'indent-none', 'indent-block');
-        if (indentType === 'firstLine') p.classList.add('indent-first-line');
-        else if (indentType === 'hanging') p.classList.add('indent-hanging');
-        else if (indentType === 'none') p.classList.add('indent-none');
-        else if (indentType === 'block') p.classList.add('indent-block');
-      }
-    }
+    handleApplyIndentStyle('firstLine');
     updateStatsAndPersist();
   };
 
@@ -860,6 +947,7 @@ export default function App() {
         }}
         onOpenSymbolModal={() => setIsSymbolModalOpen(true)}
         onApplyApaDefaultStyle={handleApplyApaDefaultStyle}
+        currentIndent={docIndent}
         onApplyIndentStyle={handleApplyIndentStyle}
         onOpenLayoutModal={() => setIsLayoutModalOpen(true)}
         onToggleAudit={() => setIsAuditOpen(!isAuditOpen)}
