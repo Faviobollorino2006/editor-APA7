@@ -358,3 +358,47 @@ span[style*="flex-direction:column"] > span:last-child {
 .math-scale-md svg { transform: scale(1.0); transform-origin: center; }
 .math-scale-lg svg { transform: scale(1.2); transform-origin: center; }
 .math-scale-xl svg { transform: scale(1.4); transform-origin: center; }
+
+/* 1. Elimina de raíz la duplicación de texto de MathJax en pantalla y exportación */
+mjx-assistive-mml,
+.MathJax_MathML,
+.mjx-assistive-mml,
+math {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+}
+
+/* 2. Permite hacer clic libremente alrededor o debajo de la fórmula */
+.math-equation-block {
+  position: relative;
+  text-align: center;
+  margin: 0.8em 0 !important;
+  line-height: normal !important;
+  pointer-events: none; /* Los clics en zonas vacías van directamente al cursor del texto */
+}
+
+.math-equation-box {
+  display: inline-block !important;
+  padding: 4px 12px !important;
+  background-color: transparent;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  position: relative;
+  pointer-events: auto; /* Solo la caja matemática responde al clic de selección */
+  cursor: pointer;
+}
+
+.math-equation-block:hover .math-equation-box {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.math-equation-block.is-selected .math-equation-box {
+  border: 1.5px solid #2563eb !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}

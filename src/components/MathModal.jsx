@@ -69,7 +69,14 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
     let svgHtml = '';
     if (window.MathJax && window.MathJax.tex2svg) {
       const node = window.MathJax.tex2svg(finalLatex, { display: chosenMode === 'display' });
-      svgHtml = node.innerHTML;
+      // Extrae EXCLUSIVAMENTE el SVG gráfico para evitar duplicados en dos líneas
+      const svgEl = node.querySelector('svg');
+      if (svgEl) {
+        svgEl.setAttribute('style', 'display: inline-block; vertical-align: middle;');
+        svgHtml = svgEl.outerHTML;
+      } else {
+        svgHtml = node.innerHTML;
+      }
     } else {
       svgHtml = `<span style="font-family: 'Cambria Math', serif; font-size: 12pt;">${finalLatex}</span>`;
     }
@@ -90,7 +97,7 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
 
     onInsert(wrapperHtml);
     onClose();
-  };
+  };};
 
   // Catálogo Aritmético Paso a Paso (Ideal para deberes de estadística)
   const arithmeticTemplates = [
@@ -396,4 +403,3 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
       </div>
     </div>
   );
-}

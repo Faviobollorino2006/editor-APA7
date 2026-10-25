@@ -87,11 +87,38 @@ export default function App() {
     hasReferences: false,
   });
 
-  // Guarda la posición del cursor y sincroniza el estado de la sangría activa
+  // Limpia fórmulas duplicadas y texto huérfano en documentos existentes
+  const healFormulaBoxes = (container) => {
+    if (!container) return;
+
+    // 1. Elimina etiquetas de accesibilidad MathML que provocaban la segunda línea duplicada
+    container.querySelectorAll('mjx-assistive-mml, math, .mjx-assistive-mml').forEach((el) => el.remove());
+
+    // 2. Si quedaron múltiples SVGs dentro de una caja, conserva solo el primero
+    container.querySelectorAll('.math-equation-box').forEach((box) => {
+      const svgs = box.querySelectorAll('svg');
+      if (svgs.length > 1) {
+        for (let i = 1; i < svgs.length; i++) {
+          svgs[i].remove();
+        }
+      }
+      // Elimina nodos de texto sueltos que duplican la fórmula
+      Array.from(box.childNodes).forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0) {
+          node.remove();
+        }
+      });
+    });
+  };
+
   const saveCursorPosition = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
-      lastRangeRef.current = sel.getRangeAt(0).cloneRange();
+      const range = sel.getRangeAt(0);
+      const activeEl = pageRefs.current[activePageIndex.current];
+      if (activeEl && activeEl.contains(range.commonAncestorContainer)) {
+        lastRangeRef.current = range.cloneRange();
+      }
 
       const node = sel.anchorNode;
       if (node) {
@@ -131,7 +158,10 @@ export default function App() {
           setPages(parsed.map((_, i) => ({ id: i + 1 })));
           setTimeout(() => {
             parsed.forEach((html, i) => {
-              if (pageRefs.current[i]) pageRefs.current[i].innerHTML = html;
+              if (pageRefs.current[i]) {
+                pageRefs.current[i].innerHTML = html;
+                healFormulaBoxes(pageRefs.current[i]);
+              }
             });
             updateStatsAndPersist();
           }, 80);
@@ -142,7 +172,10 @@ export default function App() {
 
     setPages([{ id: 1 }]);
     setTimeout(() => {
-      if (pageRefs.current[0]) pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
+      if (pageRefs.current[0]) {
+        pageRefs.current[0].innerHTML = DEFAULT_PAGE_1;
+        healFormulaBoxes(pageRefs.current[0]);
+      }
       updateStatsAndPersist();
     }, 80);
 
@@ -185,6 +218,7 @@ export default function App() {
 
     pageRefs.current.forEach((el) => {
       if (el) {
+        healFormulaBoxes(el);
         const clone = el.cloneNode(true);
         clone.querySelectorAll('.equation-quick-toolbar').forEach((t) => t.remove());
         clone.querySelectorAll('.is-selected').forEach((s) => s.classList.remove('is-selected'));
@@ -240,7 +274,6 @@ export default function App() {
     return pageRefs.current[idx] || pageRefs.current[0];
   };
 
-  // APLICACIÓN ROBUSTA DE SANGRÍA (Con restauración garantizada de selección)
   const handleApplyIndentStyle = (indentType) => {
     setDocIndent(indentType);
     const activeEl = getActivePageEl();
@@ -304,11 +337,9 @@ export default function App() {
     updateStatsAndPersist();
   };
 
-  // CONTROLADOR DE TECLADO: HERENCIA AUTOMÁTICA DE SANGRÍAS AL PRESIONAR ENTER
   const handleEditorKeyDown = (e, index) => {
     activePageIndex.current = index;
 
-    // Borrado de ecuación seleccionada con Supr o Retroceso
     if (selectedEquation && (e.key === 'Backspace' || e.key === 'Delete')) {
       e.preventDefault();
       e.stopPropagation();
@@ -335,7 +366,6 @@ export default function App() {
         let node = range.startContainer;
         let elem = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
 
-        // Salto fuera de fórmulas matemáticas con Enter
         const formulaBox = elem?.closest('.math-equation-block, .math-formula-box');
         if (formulaBox) {
           e.preventDefault();
@@ -357,7 +387,6 @@ export default function App() {
           return;
         }
 
-        // Salto desde encabezados (h3, h4): Genera directamente un párrafo con sangría APA 7
         const heading = elem?.closest('h3, h4, h5');
         if (heading) {
           e.preventDefault();
@@ -384,7 +413,6 @@ export default function App() {
           return;
         }
 
-        // Propagación de sangría entre párrafos normales
         const block = elem?.closest('p, div');
         if (block && block.classList.contains('indent-first-line') && !block.closest('.no-indent')) {
           e.preventDefault();
@@ -493,22 +521,26 @@ export default function App() {
   const handleEditorClick = (e, index) => {
     activePageIndex.current = index;
     const target = e.target;
-    const eqBlock = target.closest('.math-equation-block');
+    const eqBox = target.closest('.math-equation-box');
 
-    if (eqBlock) {
-      e.preventDefault();
-      e.stopPropagation();
-      attachToolbarToEquation(eqBlock);
-      return;
+    // Solo selecciona la fórmula si se hace clic explícitamente sobre el recuadro interactivo
+    if (eqBox) {
+      const eqBlock = eqBox.closest('.math-equation-block');
+      if (eqBlock) {
+        e.preventDefault();
+        e.stopPropagation();
+        attachToolbarToEquation(eqBlock);
+        return;
+      }
     }
 
     clearEquationSelection();
     saveCursorPosition();
   };
 
-  // Inserción en la posición exacta del cursor (sin saltos ni duplicaciones)
+  // INSERCIÓN PROGRESIVA NATURAL (En la posición exacta sin invertir el orden)
   const handleInsertSnippet = (snippetHtml) => {
-    // 1. Si explícitamente estamos editando una fórmula existente seleccionada
+    // Si estamos editando una fórmula seleccionada, la reemplaza en el mismo lugar
     if (selectedEquation && editingEquationLatex) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = snippetHtml;
@@ -529,7 +561,6 @@ export default function App() {
     const sel = window.getSelection();
     let range = null;
 
-    // Recupera la posición exacta memorizada
     if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
       range = lastRangeRef.current.cloneRange();
       sel.removeAllRanges();
@@ -546,46 +577,60 @@ export default function App() {
       sel.addRange(range);
     }
 
-    // Convertir el HTML a nodos reales
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = snippetHtml;
-    const fragment = document.createDocumentFragment();
-    let lastInsertedNode = null;
+    const formulaNode = tempDiv.firstElementChild || tempDiv.firstChild;
 
-    while (tempDiv.firstChild) {
-      lastInsertedNode = tempDiv.firstChild;
-      fragment.appendChild(lastInsertedNode);
+    let containerBlock = range.startContainer;
+    if (containerBlock.nodeType === Node.TEXT_NODE) {
+      containerBlock = containerBlock.parentElement;
     }
+    const parentBlock = containerBlock.closest('p, div:not(.editor-body):not(.paper-sheet), h3, h4');
 
-    const startNode = range.startContainer;
-    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
-    const currentP = currentElem?.closest('p, div:not(.editor-body):not(.paper-sheet)');
+    if (snippetHtml.includes('math-equation-block')) {
+      let insertedBlock = formulaNode;
 
-    // Si es un bloque y el párrafo actual está vacío (<p><br></p>), lo reemplaza limpiamente
-    if (currentP && snippetHtml.includes('math-equation-block') && currentP.textContent.trim() === '') {
-      currentP.parentNode.insertBefore(fragment, currentP);
-      currentP.remove();
-    } else {
-      // Si es una fórmula en línea o el párrafo ya tiene texto, inserta exactamente en el cursor
-      range.deleteContents();
-      range.insertNode(fragment);
-    }
-
-    // Ubica el cursor inmediatamente a la derecha del elemento insertado
-    if (lastInsertedNode) {
-      const newRange = document.createRange();
-      if (snippetHtml.includes('math-equation-block')) {
-        const nextP = document.createElement('p');
-        nextP.className = 'indent-first-line';
-        nextP.style.textIndent = '0.5in';
-        nextP.innerHTML = '<br>';
-        if (lastInsertedNode.parentNode) {
-          lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
-          newRange.setStart(nextP, 0);
+      if (parentBlock && parentBlock.parentNode && parentBlock.tagName === 'P' && parentBlock.textContent.trim() === '') {
+        // Si el renglón está vacío, reemplaza ese renglón con la fórmula
+        parentBlock.parentNode.replaceChild(insertedBlock, parentBlock);
+      } else if (parentBlock && parentBlock.parentNode) {
+        // Si hay texto o es un título, inserta la fórmula inmediatamente DESPUÉS del bloque actual
+        if (parentBlock.nextSibling) {
+          parentBlock.parentNode.insertBefore(insertedBlock, parentBlock.nextSibling);
+        } else {
+          parentBlock.parentNode.appendChild(insertedBlock);
         }
       } else {
-        newRange.setStartAfter(lastInsertedNode);
+        range.deleteContents();
+        range.insertNode(insertedBlock);
       }
+
+      // Crea inmediatamente un nuevo párrafo DEBAJO de la fórmula para que el cursor continúe en orden cronológico
+      const nextP = document.createElement('p');
+      nextP.className = 'indent-first-line';
+      nextP.style.textIndent = '0.5in';
+      nextP.innerHTML = '<br>';
+
+      if (insertedBlock.parentNode) {
+        if (insertedBlock.nextSibling) {
+          insertedBlock.parentNode.insertBefore(nextP, insertedBlock.nextSibling);
+        } else {
+          insertedBlock.parentNode.appendChild(nextP);
+        }
+
+        const newRange = document.createRange();
+        newRange.setStart(nextP, 0);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        lastRangeRef.current = newRange.cloneRange();
+      }
+    } else {
+      // Inserción en línea estándar
+      range.deleteContents();
+      range.insertNode(formulaNode);
+      const newRange = document.createRange();
+      newRange.setStartAfter(formulaNode);
       newRange.collapse(true);
       sel.removeAllRanges();
       sel.addRange(newRange);
@@ -595,80 +640,6 @@ export default function App() {
     clearEquationSelection();
     updateStatsAndPersist();
   };
-  };
-
-    const activeEl = getActivePageEl();
-    if (!activeEl) return;
-    activeEl.focus();
-
-    const sel = window.getSelection();
-    let range = null;
-
-    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
-      range = lastRangeRef.current.cloneRange();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-      range = sel.getRangeAt(0);
-    }
-
-    if (!range) {
-      range = document.createRange();
-      range.selectNodeContents(activeEl);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = snippetHtml;
-    const fragment = document.createDocumentFragment();
-    let lastInsertedNode = null;
-
-    while (tempDiv.firstChild) {
-      lastInsertedNode = tempDiv.firstChild;
-      fragment.appendChild(lastInsertedNode);
-    }
-
-    const startNode = range.startContainer;
-    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
-    const currentP = currentElem?.closest('p');
-
-    if (currentP && snippetHtml.includes('math-equation-block')) {
-      if (currentP.textContent.trim() === '') {
-        currentP.parentNode.insertBefore(fragment, currentP);
-        currentP.remove();
-      } else {
-        if (currentP.nextSibling) {
-          currentP.parentNode.insertBefore(fragment, currentP.nextSibling);
-        } else {
-          currentP.parentNode.appendChild(fragment);
-        }
-      }
-    } else {
-      range.deleteContents();
-      range.insertNode(fragment);
-    }
-
-    if (lastInsertedNode) {
-      const nextP = document.createElement('p');
-      nextP.className = 'indent-first-line';
-      nextP.style.textIndent = '0.5in';
-      nextP.innerHTML = '<br>';
-
-      if (lastInsertedNode.parentNode) {
-        lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
-        const newRange = document.createRange();
-        newRange.setStart(nextP, 0);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
-        lastRangeRef.current = newRange.cloneRange();
-      }
-    }
-
-    updateStatsAndPersist();
-  
 
   const handleFontChange = (newFont) => {
     setDocFont(newFont);
@@ -1019,8 +990,8 @@ export default function App() {
         onOpenFigureModal={() => setIsFigureModalOpen(true)}
         onOpenReferenceModal={() => setIsRefModalOpen(true)}
         onOpenMathModal={() => {
-          saveCursorPosition(); // Guarda la posición exacta antes de abrir
-          setSelectedEquation(null); // Asegura que nunca reemplace la fórmula anterior
+          saveCursorPosition();
+          setSelectedEquation(null);
           setEditingEquationLatex(null);
           setIsMathModalOpen(true);
         }}
@@ -1212,3 +1183,4 @@ export default function App() {
       <ReferenceModal isOpen={isRefModalOpen} onClose={() => setIsRefModalOpen(false)} onInsertReference={handleInsertSnippet} onInsertInTextCitation={(text) => handleInsertSnippet(`<span>${text}</span>`)} />
     </div>
   );
+}
