@@ -3,23 +3,22 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function MathModal({ isOpen, onClose, onInsert, editingLatex = null }) {
   if (!isOpen) return null;
 
-  const [activeTab, setActiveTab] = useState(editingLatex ? 'free' : 'arithmetic'); // 'arithmetic' | 'templates' | 'builder' | 'free'
-  const [equationMode, setEquationMode] = useState('inline'); // 'inline' (en la línea) | 'display' (bloque centrado)
+  const [activeTab, setActiveTab] = useState(editingLatex ? 'free' : 'arithmetic');
+  const [equationMode, setEquationMode] = useState('inline');
   
-  // Constructor Visual
+  // Estados del Constructor
   const [fracNum, setFracNum] = useState('1200 \\cdot 1{,}96^2 \\cdot 0{,}25');
   const [fracDen, setFracDen] = useState('1199 \\cdot 0{,}05^2 + 1{,}96^2 \\cdot 0{,}25');
   const [leftVar, setLeftVar] = useState('n = ');
   const [rightResult, setRightResult] = useState('');
   
-  // Editor Libre
+  // Estado Modo Libre
   const [rawLatex, setRawLatex] = useState(
     editingLatex || '(1{,}96)^2 = 3{,}8416'
   );
   
   const previewRef = useRef(null);
 
-  // Limpia cualquier signo de dólar accidental
   const cleanLatex = (str) => {
     if (!str) return '';
     return str.replace(/\$+/g, '').trim();
@@ -69,7 +68,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
     let svgHtml = '';
     if (window.MathJax && window.MathJax.tex2svg) {
       const node = window.MathJax.tex2svg(finalLatex, { display: chosenMode === 'display' });
-      // Extrae EXCLUSIVAMENTE el SVG gráfico para evitar duplicados en dos líneas
       const svgEl = node.querySelector('svg');
       if (svgEl) {
         svgEl.setAttribute('style', 'display: inline-block; vertical-align: middle;');
@@ -97,9 +95,8 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
 
     onInsert(wrapperHtml);
     onClose();
-  };};
+  };
 
-  // Catálogo Aritmético Paso a Paso (Ideal para deberes de estadística)
   const arithmeticTemplates = [
     {
       title: 'Resolución de Potencia al Cuadrado',
@@ -139,7 +136,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
     }
   ];
 
-  // Plantillas de Fórmulas Teóricas
   const theoreticalTemplates = [
     {
       title: 'Tamaño de Muestra: Población Finita (Fórmula General)',
@@ -170,8 +166,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden text-slate-800 flex flex-col max-h-[90vh]">
-        
-        {/* Cabecera */}
         <div className="px-6 py-3.5 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="w-8 h-8 rounded bg-blue-700 text-white font-serif font-bold text-lg flex items-center justify-center shadow-xs">
@@ -192,7 +186,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
           </button>
         </div>
 
-        {/* Pestañas y Modo de Inserción */}
         <div className="px-6 pt-3 pb-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-white">
           <div className="flex items-center gap-1.5">
             <button
@@ -242,7 +235,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
           </div>
         </div>
 
-        {/* TAB 1: ARITMÉTICA Y CÁLCULOS PASO A PASO */}
         {activeTab === 'arithmetic' && (
           <div className="p-6 overflow-y-auto grid grid-cols-1 gap-3 flex-1 bg-slate-50/50">
             {arithmeticTemplates.map((item, idx) => (
@@ -269,7 +261,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
           </div>
         )}
 
-        {/* TAB 2: FÓRMULAS TEÓRICAS */}
         {activeTab === 'templates' && (
           <div className="p-6 overflow-y-auto grid grid-cols-1 gap-3 flex-1 bg-slate-50/50">
             {theoreticalTemplates.map((tpl, idx) => (
@@ -296,7 +287,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
           </div>
         )}
 
-        {/* TAB 3: CONSTRUCTOR */}
         {activeTab === 'builder' && (
           <div className="p-6 overflow-y-auto space-y-4 flex-1">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -364,7 +354,6 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
           </div>
         )}
 
-        {/* TAB 4: MODO LIBRE */}
         {activeTab === 'free' && (
           <div className="p-6 overflow-y-auto space-y-4 flex-1">
             <div>
@@ -403,3 +392,4 @@ export default function MathModal({ isOpen, onClose, onInsert, editingLatex = nu
       </div>
     </div>
   );
+}
