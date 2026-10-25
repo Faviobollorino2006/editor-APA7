@@ -759,12 +759,84 @@ export default function App() {
     handleInsertSnippet(symbolHtml);
   };
 
+  // Inserción precisa en la posición del cursor (sin saltos al inicio de la página)
   const handleInsertSnippet = (snippetHtml) => {
-    const el = getActivePageEl();
-    if (!el) return;
-    el.focus();
-    document.execCommand('insertHTML', false, snippetHtml);
-    saveCursorPosition();
+    const activeEl = getActivePageEl();
+    if (!activeEl) return;
+    activeEl.focus();
+
+    const sel = window.getSelection();
+    let range = null;
+
+    // Recupera la posición exacta que tenía el cursor antes de abrir el modal
+    if (lastRangeRef.current && activeEl.contains(lastRangeRef.current.commonAncestorContainer)) {
+      range = lastRangeRef.current.cloneRange();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else if (sel && sel.rangeCount > 0 && activeEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      range = sel.getRangeAt(0);
+    }
+
+    if (!range) {
+      // Si por alguna razón no hay rango, lo coloca al final del documento y no arriba
+      range = document.createRange();
+      range.selectNodeContents(activeEl);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    // Convertir el HTML a nodos reales
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = snippetHtml;
+    const fragment = document.createDocumentFragment();
+    let lastInsertedNode = null;
+
+    while (tempDiv.firstChild) {
+      lastInsertedNode = tempDiv.firstChild;
+      fragment.appendChild(lastInsertedNode);
+    }
+
+    // Si es un bloque de fórmula y el cursor está en un párrafo vacío (<p><br></p>), reemplaza el párrafo
+    const startNode = range.startContainer;
+    const currentElem = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode;
+    const currentP = currentElem?.closest('p');
+
+    if (currentP && snippetHtml.includes('math-equation-block')) {
+      if (currentP.textContent.trim() === '') {
+        currentP.parentNode.insertBefore(fragment, currentP);
+        currentP.remove();
+      } else {
+        // Si el párrafo tiene texto, inserta la fórmula inmediatamente debajo
+        if (currentP.nextSibling) {
+          currentP.parentNode.insertBefore(fragment, currentP.nextSibling);
+        } else {
+          currentP.parentNode.appendChild(fragment);
+        }
+      }
+    } else {
+      // Inserción en línea estándar
+      range.deleteContents();
+      range.insertNode(fragment);
+    }
+
+    // Posiciona el cursor inmediatamente después de la fórmula insertada
+    if (lastInsertedNode) {
+      const nextP = document.createElement('p');
+      nextP.className = 'indent-first-line';
+      nextP.innerHTML = '<br>';
+
+      if (lastInsertedNode.parentNode) {
+        lastInsertedNode.parentNode.insertBefore(nextP, lastInsertedNode.nextSibling);
+        const newRange = document.createRange();
+        newRange.setStart(nextP, 0);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        lastRangeRef.current = newRange.cloneRange();
+      }
+    }
+
     updateStatsAndPersist();
   };
 

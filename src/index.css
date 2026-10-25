@@ -250,3 +250,24 @@ span[style*="flex-direction:column"] > span:last-child {
   display: inline-block !important;
   vertical-align: middle !important;
 }
+
+/* Ecuaciones Matemáticas Vectoriales Compactas */
+.math-equation-block {
+  text-align: center;
+  margin: 0.6em 0 !important;
+  cursor: pointer;
+  line-height: normal !important;
+}
+
+.math-equation-box {
+  display: inline-block !important;
+  padding: 3px 10px !important; /* Ajuste ceñido a la fórmula */
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1 !important; /* Borde sutil solo de guía al editar */
+  border-radius: 4px;
+}
+
+.math-equation-box:hover {
+  border-color: #94a3b8 !important;
+  background-color: #f1f5f9;
+}

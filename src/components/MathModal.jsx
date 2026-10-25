@@ -69,19 +69,17 @@ export default function MathModal({ isOpen, onClose, onInsert }) {
 
     const wrapperHtml = equationMode === 'display'
       ? `
-        <div class="math-equation-block no-indent" data-latex="${encodeURIComponent(finalLatex)}" style="text-align: center; margin: 1.2em 0; user-select: all; cursor: pointer;" title="Ecuación Vectorial Matemática">
-          <div style="display: inline-block; padding: 8px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+        <div class="math-equation-block no-indent" data-latex="${encodeURIComponent(finalLatex)}" style="text-align: center; margin: 0.6em 0; user-select: all; cursor: pointer;" title="Ecuación Matemática">
+          <div class="math-equation-box" style="display: inline-block; padding: 2px 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
             ${svgHtml}
           </div>
         </div>
-        <p class="indent-first-line"><br></p>
       `
       : `
-        <span class="math-equation-inline" data-latex="${encodeURIComponent(finalLatex)}" style="display: inline-block; vertical-align: middle; padding: 2px 6px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin: 0 3px;">
+        <span class="math-equation-inline" data-latex="${encodeURIComponent(finalLatex)}" style="display: inline-block; vertical-align: middle; padding: 1px 4px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; margin: 0 2px;">
           ${svgHtml}
         </span>&nbsp;
       `;
-
     onInsert(wrapperHtml);
     onClose();
   };
